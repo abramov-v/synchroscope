@@ -6,6 +6,7 @@ from config import (
     BUS_FREQUENCY, BUS_VOLTAGE,
     INITIAL_GEN_FREQUENCY, INITIAL_GEN_PHASE_DEG, INITIAL_GEN_VOLTAGE,
     SYNC_PHASE_LIMIT_DEG, SYNC_FREQUENCY_LIMIT_HZ, SYNC_VOLTAGE_LIMIT_KV,
+    INITIAL_EXCITATION, EXCITATION_KV_PER_PERCENT, AVR_RESPONSE, AVR_GAIN,
 )
 from generator import Generator
 
@@ -64,6 +65,7 @@ class Simulation:
         if avr:
             error_v = self.bus.voltage - self.generator.voltage
             self.excitation += error_v * AVR_GAIN * dt
+            self.excitation = max(0.0, min(100.0, self.excitation))
         target_voltage = self.excitation_target_voltage()
         self.generator.voltage += (
             target_voltage - self.generator.voltage
