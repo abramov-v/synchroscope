@@ -26,11 +26,15 @@ class Synchroscope(tk.Tk):
         self.configure(bg=BG)
 
         self.connected = False
-        self.time_scale = 1.0
         self.last_time = time.perf_counter()
 
         self.bus = Generator(50.00, 0.0, 110.0)
         self.generator = Generator(49.80, math.radians(-70), 108.5)
+
+        # Frequency setpoint is changed by the slider. Actual frequency
+        # approaches it at the selected SLOW/FAST rate.
+        self.frequency_target = 49.80
+        self.frequency_rate = 0.20
         self.governor = False
         self.avr = False
 
@@ -79,11 +83,10 @@ class Synchroscope(tk.Tk):
         self.status = tk.Label(bottom, text="SYNCHRONIZING", fg=AMBER,
                                bg=BG, font=("Arial", 12, "bold"))
         self.status.pack(side="left")
-        self.help = tk.Label(
+        tk.Label(
             bottom,
             text="Match ΔF and ΔV → wait for 12 o'clock → CLOSE BREAKER",
-            fg=MUTED, bg=BG, font=("Arial", 10))
-        self.help.pack(side="right")
+            fg=MUTED, bg=BG, font=("Arial", 10)).pack(side="right")
 
     def build_controls(self, parent):
         tk.Label(parent, text="INCOMING GENERATOR", fg=TEXT, bg=PANEL,
@@ -93,18 +96,41 @@ class Synchroscope(tk.Tk):
                                        font=("Arial", 18, "bold"))
         self.gen_freq_label.pack(anchor="w", padx=18)
 
-        tk.Label(parent, text="Frequency (Hz)", fg=MUTED, bg=PANEL).pack(
+        tk.Label(parent, text="Frequency setpoint (Hz)", fg=MUTED, bg=PANEL).pack(
             anchor="w", padx=18)
         self.freq_scale = tk.Scale(
             parent, from_=49.0, to=51.0, resolution=0.01,
             orient="horizontal", bg=PANEL, fg=TEXT, highlightthickness=0,
             troughcolor=GRID, activebackground=BLUE,
             command=self.set_frequency)
-        self.freq_scale.set(self.generator.frequency)
+        self.freq_scale.set(self.frequency_target)
         self.freq_scale.pack(fill="x", padx=18)
 
+        tk.Label(parent, text="Frequency change rate", fg=MUTED, bg=PANEL).pack(
+            anchor="w", padx=18, pady=(8, 3))
+
+        rate_frame = tk.Frame(parent, bg=PANEL)
+        rate_frame.pack(fill="x", padx=18)
+
+        self.slow_button = tk.Button(
+            rate_frame, text="SLOW", command=lambda: self.set_rate("slow"),
+            bg=BLUE, fg=TEXT, relief="flat",
+            font=("Arial", 10, "bold"), padx=8, pady=7)
+        self.slow_button.pack(side="left", fill="x", expand=True, padx=(0, 4))
+
+        self.fast_button = tk.Button(
+            rate_frame, text="FAST", command=lambda: self.set_rate("fast"),
+            bg="#374151", fg=MUTED, relief="flat",
+            font=("Arial", 10, "bold"), padx=8, pady=7)
+        self.fast_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        self.rate_label = tk.Label(
+            parent, text="0.20 Hz/s", fg=MUTED, bg=PANEL,
+            font=("Arial", 9))
+        self.rate_label.pack(anchor="w", padx=18, pady=(3, 0))
+
         tk.Label(parent, text="Voltage (kV)", fg=MUTED, bg=PANEL).pack(
-            anchor="w", padx=18, pady=(8, 0))
+            anchor="w", padx=18, pady=(10, 0))
         self.voltage_scale = tk.Scale(
             parent, from_=105, to=115, resolution=0.1,
             orient="horizontal", bg=PANEL, fg=TEXT, highlightthickness=0,
@@ -118,7 +144,7 @@ class Synchroscope(tk.Tk):
             parent, text="AUTO GOVERNOR", variable=self.gov_var,
             command=self.toggle_governor, bg=PANEL, fg=MUTED,
             selectcolor=BG, activebackground=PANEL, activeforeground=TEXT,
-            highlightthickness=0).pack(anchor="w", padx=14, pady=(10, 0))
+            highlightthickness=0).pack(anchor="w", padx=14, pady=(8, 0))
 
         self.avr_var = tk.BooleanVar(value=False)
         tk.Checkbutton(
@@ -127,21 +153,11 @@ class Synchroscope(tk.Tk):
             selectcolor=BG, activebackground=PANEL, activeforeground=TEXT,
             highlightthickness=0).pack(anchor="w", padx=14)
 
-        tk.Label(parent, text="Simulation speed", fg=MUTED, bg=PANEL).pack(
-            anchor="w", padx=18, pady=(12, 2))
-        self.speed_scale = tk.Scale(
-            parent, from_=0.25, to=3.0, resolution=0.25,
-            orient="horizontal", bg=PANEL, fg=TEXT, highlightthickness=0,
-            troughcolor=GRID, activebackground=BLUE,
-            command=self.set_time_scale)
-        self.speed_scale.set(1.0)
-        self.speed_scale.pack(fill="x", padx=18)
-
         self.close_button = tk.Button(
             parent, text="CLOSE BREAKER", command=self.close_breaker,
             bg="#374151", fg=TEXT, relief="flat",
             font=("Arial", 12, "bold"), padx=10, pady=12)
-        self.close_button.pack(fill="x", padx=18, pady=(18, 8))
+        self.close_button.pack(fill="x", padx=18, pady=(17, 8))
 
         tk.Button(parent, text="RESET", command=self.reset,
                   bg="#1f2937", fg=MUTED, relief="flat",
@@ -156,14 +172,22 @@ class Synchroscope(tk.Tk):
 
     def set_frequency(self, value):
         if not self.connected:
-            self.generator.frequency = float(value)
+            self.frequency_target = float(value)
+
+    def set_rate(self, mode):
+        if mode == "slow":
+            self.frequency_rate = 0.20
+            self.slow_button.config(bg=BLUE, fg=TEXT)
+            self.fast_button.config(bg="#374151", fg=MUTED)
+        else:
+            self.frequency_rate = 1.00
+            self.fast_button.config(bg=BLUE, fg=TEXT)
+            self.slow_button.config(bg="#374151", fg=MUTED)
+        self.rate_label.config(text=f"{self.frequency_rate:.2f} Hz/s")
 
     def set_voltage(self, value):
         if not self.connected:
             self.generator.voltage = float(value)
-
-    def set_time_scale(self, value):
-        self.time_scale = float(value)
 
     def toggle_governor(self):
         self.governor = self.gov_var.get()
@@ -179,6 +203,7 @@ class Synchroscope(tk.Tk):
         if phase <= 10 and df <= 0.10 and dv <= 1.0:
             self.connected = True
             self.generator.frequency = self.bus.frequency
+            self.frequency_target = self.bus.frequency
             self.generator.voltage = self.bus.voltage
             self.close_button.config(text="BREAKER CLOSED", state="disabled")
             self.freq_scale.config(state="disabled")
@@ -198,16 +223,25 @@ class Synchroscope(tk.Tk):
         self.generator.frequency = 49.80
         self.generator.phase = math.radians(-70)
         self.generator.voltage = 108.5
+        self.frequency_target = 49.80
+
         self.freq_scale.config(state="normal")
         self.voltage_scale.config(state="normal")
-        self.freq_scale.set(self.generator.frequency)
+        self.freq_scale.set(self.frequency_target)
         self.voltage_scale.set(self.generator.voltage)
+
+        self.gov_var.set(False)
+        self.avr_var.set(False)
+        self.governor = False
+        self.avr = False
+
         self.close_button.config(text="CLOSE BREAKER", state="normal")
         self.status.config(text="SYNCHRONIZING", fg=AMBER)
+        self.set_rate("slow")
 
     def animate(self):
         now = time.perf_counter()
-        dt = min(now - self.last_time, 0.1) * self.time_scale
+        dt = min(now - self.last_time, 0.1)
         self.last_time = now
 
         self.bus.advance(dt)
@@ -218,12 +252,20 @@ class Synchroscope(tk.Tk):
             self.generator.voltage = self.bus.voltage
         else:
             if self.governor:
-                # Simple governor: smoothly drive frequency toward the bus.
-                error = self.bus.frequency - self.generator.frequency
-                self.generator.frequency += error * min(dt * 1.8, 1.0)
+                self.frequency_target = self.bus.frequency
+
+            # Slew actual frequency toward the selected setpoint.
+            error = self.frequency_target - self.generator.frequency
+            max_change = self.frequency_rate * dt
+            if abs(error) <= max_change:
+                self.generator.frequency = self.frequency_target
+            else:
+                self.generator.frequency += math.copysign(max_change, error)
+
             if self.avr:
-                error = self.bus.voltage - self.generator.voltage
-                self.generator.voltage += error * min(dt * 2.0, 1.0)
+                error_v = self.bus.voltage - self.generator.voltage
+                self.generator.voltage += error_v * min(dt * 2.0, 1.0)
+
             self.generator.advance(dt)
 
         self.draw()
@@ -235,6 +277,7 @@ class Synchroscope(tk.Tk):
             outline="#4b5563")
         self.canvas.create_line(cx-radius, cy, cx+radius, cy, fill="#1f2937")
         self.canvas.create_line(cx, cy-radius, cx, cy+radius, fill="#1f2937")
+
         a = phase - math.pi / 2
         x = cx + (radius - 10) * math.cos(a)
         y = cy + (radius - 10) * math.sin(a)
@@ -268,24 +311,37 @@ class Synchroscope(tk.Tk):
         a = error - math.pi / 2
         px = cx + (radius-18) * math.cos(a)
         py = cy + (radius-18) * math.sin(a)
+
         phase_ok = abs(math.degrees(error)) <= 10
         freq_ok = abs(self.frequency_difference()) <= 0.10
         volt_ok = abs(self.voltage_difference()) <= 1.0
         ready = phase_ok and freq_ok and volt_ok
+
         self.canvas.create_line(
             cx, cy, px, py, fill=GREEN if ready else BLUE, width=4)
         self.canvas.create_oval(cx-5, cy-5, cx+5, cy+5, fill=TEXT, outline="")
+
+        # Small ready zone around 12 o'clock.
+        zone = math.radians(10)
+        for side in (-1, 1):
+            aa = -math.pi/2 + side * zone
+            self.canvas.create_line(
+                cx, cy,
+                cx + (radius-5)*math.cos(aa),
+                cy + (radius-5)*math.sin(aa),
+                fill=GREEN, width=2)
+
         self.canvas.create_text(cx, cy+radius+20, text="SYNCHROSCOPE",
                                 fill=MUTED, font=("Arial", 9, "bold"))
 
     def draw_waveform(self, x, y, width, height):
-        self.canvas.create_rectangle(x, y, x+width, y+height,
-                                     outline="#263244")
+        self.canvas.create_rectangle(
+            x, y, x+width, y+height, outline="#263244")
         mid = y + height/2
         self.canvas.create_line(x, mid, x+width, mid, fill="#1f2937")
-        self.canvas.create_text(x+8, y+8, anchor="nw",
-                                text="VOLTAGE WAVEFORM", fill=MUTED,
-                                font=("Arial", 8, "bold"))
+        self.canvas.create_text(
+            x+8, y+8, anchor="nw", text="VOLTAGE WAVEFORM",
+            fill=MUTED, font=("Arial", 8, "bold"))
 
         samples = 180
         for idx, (phase, color, label) in enumerate([
@@ -295,13 +351,48 @@ class Synchroscope(tk.Tk):
             for i in range(samples):
                 t = i / (samples-1)
                 xx = x + t * width
-                yy = mid - math.sin(2*math.pi*2.2*t + phase) * (height*0.30)
+                yy = mid - math.sin(
+                    2*math.pi*2.2*t + phase) * (height*0.30)
                 points.extend((xx, yy))
-            self.canvas.create_line(*points, fill=color, width=2,
-                                    smooth=True)
+
+            self.canvas.create_line(
+                *points, fill=color, width=2, smooth=True)
             self.canvas.create_text(
                 x+width-8, y+12+idx*15, anchor="ne",
                 text=label, fill=color, font=("Arial", 8, "bold"))
+
+    def draw_breaker(self, x, y, width):
+        # Electrical one-line breaker symbol: two fixed contacts and a
+        # movable blade. Open = diagonal blade, closed = horizontal blade.
+        left = x - width/2
+        right = x + width/2
+        gap = 26
+        left_contact = x - gap
+        right_contact = x + gap
+
+        line_y = y + 8
+        self.canvas.create_line(
+            left, line_y, left_contact, line_y, fill="#6b7280", width=5)
+        self.canvas.create_line(
+            right_contact, line_y, right, line_y, fill="#6b7280", width=5)
+
+        self.canvas.create_oval(
+            left_contact-6, line_y-6, left_contact+6, line_y+6,
+            fill="#d1d5db", outline="")
+        self.canvas.create_oval(
+            right_contact-6, line_y-6, right_contact+6, line_y+6,
+            fill="#d1d5db", outline="")
+
+        blade_color = GREEN if self.connected else RED
+        blade_end_y = line_y if self.connected else line_y - 30
+        self.canvas.create_line(
+            left_contact, line_y, right_contact, blade_end_y,
+            fill=blade_color, width=7)
+
+        state = "BREAKER CLOSED" if self.connected else "BREAKER OPEN"
+        self.canvas.create_text(
+            x, y + 43, text=state, fill=blade_color,
+            font=("Arial", 10, "bold"))
 
     def draw(self):
         self.canvas.delete("all")
@@ -309,41 +400,41 @@ class Synchroscope(tk.Tk):
         h = max(self.canvas.winfo_height(), 450)
 
         r = min(w, h) * 0.16
-        self.draw_vector(w*.22, h*.30, r, "BUS / GRID", self.bus.phase, "#d1d5db")
-        self.draw_vector(w*.78, h*.30, r, "INCOMING GENERATOR", self.generator.phase, BLUE)
+        self.draw_vector(
+            w*.22, h*.30, r, "BUS / GRID", self.bus.phase, "#d1d5db")
+        self.draw_vector(
+            w*.78, h*.30, r, "INCOMING GENERATOR",
+            self.generator.phase, BLUE)
         self.draw_synchroscope(w*.50, h*.30, r*0.82)
 
         self.draw_waveform(w*.08, h*.52, w*.84, h*.25)
-
-        y = h*.86
-        bx = w*.78
-        breaker_color = GREEN if self.connected else RED
-        self.canvas.create_line(w*.08, y, w*.92, y, fill=GRID, width=4)
-        self.canvas.create_oval(
-            bx-9, y-9, bx+9, y+9, fill=breaker_color, outline="")
-        self.canvas.create_text(
-            bx, y+23,
-            text="BREAKER CLOSED" if self.connected else "BREAKER OPEN",
-            fill=breaker_color, font=("Arial", 10, "bold"))
+        self.draw_breaker(w*.50, h*.85, w*.70)
 
         phase_deg = math.degrees(self.phase_error())
         df = self.frequency_difference()
         dv = self.voltage_difference()
+
         self.gen_freq_label.config(text=f"{self.generator.frequency:.2f} Hz")
         self.measurements.config(
             text=(
                 f"BUS       {self.bus.frequency:>6.2f} Hz\n"
                 f"GEN       {self.generator.frequency:>6.2f} Hz\n"
+                f"SETPOINT  {self.frequency_target:>6.2f} Hz\n"
                 f"ΔF        {df:>+6.2f} Hz\n"
                 f"BUS V     {self.bus.voltage:>6.1f} kV\n"
                 f"GEN V     {self.generator.voltage:>6.1f} kV\n"
                 f"ΔV        {dv:>+6.1f} kV\n"
                 f"PHASE     {phase_deg:>+6.1f}°\n"
+                f"RATE      {self.frequency_rate:>6.2f} Hz/s\n"
                 f"STATUS    {'CLOSED' if self.connected else 'OPEN'}"
             ))
 
         if not self.connected:
-            ready = abs(phase_deg) <= 10 and abs(df) <= .10 and abs(dv) <= 1.0
+            ready = (
+                abs(phase_deg) <= 10
+                and abs(df) <= .10
+                and abs(dv) <= 1.0
+            )
             self.status.config(
                 text="READY TO CLOSE" if ready else "SYNCHRONIZING",
                 fg=GREEN if ready else AMBER)
