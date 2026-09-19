@@ -39,6 +39,8 @@ class Synchroscope(tk.Tk):
         self.breaker_animating = False
         self.breaker_anim_start = 0.0
         self.breaker_anim_duration = 0.28
+        self.visual_phase = 0.0
+        self.visual_phase_scale = 0.08
 
         self.build_ui()
 
@@ -330,6 +332,10 @@ class Synchroscope(tk.Tk):
         self.last_time = now
 
         self.bus.advance(dt)
+        self.visual_phase = (
+            self.visual_phase + 2 * math.pi * self.bus.frequency
+            * dt * self.visual_phase_scale
+        ) % (2 * math.pi)
 
         if self.connected:
             self.generator.phase = self.bus.phase
@@ -345,7 +351,7 @@ class Synchroscope(tk.Tk):
         self.draw()
         self.after(30, self.animate)
 
-    def draw_vector(self, cx, cy, radius, title, phase, color, fixed=False):
+    def draw_vector(self, cx, cy, radius, title, phase, color, relative_offset=0.0):
         self.canvas.create_oval(
             cx-radius, cy-radius, cx+radius, cy+radius,
             outline="#4b5563")
@@ -354,8 +360,9 @@ class Synchroscope(tk.Tk):
         self.canvas.create_line(cx, cy-radius, cx, cy+radius,
                                 fill="#1f2937")
 
-        # BUS is the fixed reference. GEN is drawn using relative phase.
-        a = -math.pi / 2 if fixed else phase - math.pi / 2
+        # Visualize the common AC rotation at a readable speed.
+        # GEN keeps the real relative phase_error on top of the common rotation.
+        a = self.visual_phase + relative_offset - math.pi / 2
         x = cx + (radius - 10) * math.cos(a)
         y = cy + (radius - 10) * math.sin(a)
 
@@ -508,9 +515,9 @@ class Synchroscope(tk.Tk):
         h = max(self.canvas.winfo_height(), 450)
 
         r = min(w, h) * 0.16
-        self.draw_vector(w*.22, h*.30, r, "BUS / GRID", 0.0, "#d1d5db", fixed=True)
+        self.draw_vector(w*.22, h*.30, r, "BUS / GRID", self.visual_phase, "#d1d5db")
         self.draw_vector(w*.78, h*.30, r, "INCOMING GENERATOR",
-                         self.phase_error(), BLUE, fixed=False)
+                         self.visual_phase, BLUE, self.phase_error())
         self.draw_synchroscope(w*.50, h*.30, r*0.82)
         self.draw_waveform(w*.08, h*.52, w*.84, h*.25)
         self.draw_breaker(w*.50, h*.85, w*.70)
