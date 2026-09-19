@@ -36,7 +36,7 @@ class Synchroscope(tk.Tk):
         self.frequency_min = 49.0
         self.frequency_max = 51.0
         self.avr = False
-        self.breaker_animating = false
+        self.breaker_animating = False
         self.breaker_anim_start = 0.0
         self.breaker_anim_duration = 0.28
 
