@@ -7,8 +7,9 @@ Educational simulator for synchronizing a generator with a 50 Hz BUS.
 ```bash
 python app.py
 ```
-
 Requirements: Python 3.x + Tkinter
+
+<img width="2534" height="1449" alt="image" src="https://github.com/user-attachments/assets/aaef13ed-5267-440b-a56d-1ccf7f44a68b" />
 
 ## Controls
 
@@ -21,7 +22,7 @@ Requirements: Python 3.x + Tkinter
 - **RESET** — restore initial state
 
 
-<img width="2534" height="1449" alt="image" src="https://github.com/user-attachments/assets/aaef13ed-5267-440b-a56d-1ccf7f44a68b" />
+
 
 
 
