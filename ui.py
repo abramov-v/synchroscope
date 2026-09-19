@@ -51,9 +51,9 @@ class UIMixin:
 
     def build_controls(self, parent):
         tk.Label(parent, text="INCOMING GENERATOR", fg=config.TEXT, bg=config.PANEL,
-                 font=("Arial", 15, "bold")).pack(anchor="w", padx=18, pady=(16, 2))
+                 font=("Arial", 12, "bold")).pack(anchor="w", padx=18, pady=(10, 1))
         self.gen_freq_label = tk.Label(parent, fg=config.TEXT, bg=config.PANEL,
-                                       font=("Arial", 18, "bold"))
+                                       font=("Arial", 17, "bold"))
         self.gen_freq_label.pack(anchor="w", padx=18)
         tk.Label(parent, text="Frequency control", fg=config.MUTED, bg=config.PANEL).pack(
             anchor="w", padx=18, pady=(2, 4))
@@ -80,10 +80,10 @@ class UIMixin:
         self.down_button.bind("<ButtonRelease-1>", self.stop_frequency_hold)
         self.up_button.bind("<ButtonPress-1>", lambda event: self.start_frequency_hold(1))
         self.up_button.bind("<ButtonRelease-1>", self.stop_frequency_hold)
-        tk.Label(parent, text="Click = one step • Hold = continuous change", fg=config.MUTED,
+        tk.Label(parent, text="0.01 Hz/step • HOLD = continuous", fg=config.MUTED,
                  bg=config.PANEL, font=("Arial", 8)).pack(anchor="w", padx=18, pady=(3, 0))
 
-        tk.Label(parent, text="Optional frequency slider", fg=config.MUTED, bg=config.PANEL).pack(
+        tk.Label(parent, text="Frequency", fg=config.MUTED, bg=config.PANEL).pack(
             anchor="w", padx=18, pady=(10, 2))
         self.frequency_scale = tk.Scale(
             parent, from_=config.FREQUENCY_MIN, to=config.FREQUENCY_MAX,
@@ -93,7 +93,7 @@ class UIMixin:
             command=self.set_frequency_slider)
         self.frequency_scale.set(self.simulation.generator.frequency)
         self.frequency_scale.pack(fill="x", padx=18)
-        tk.Label(parent, text="Slider directly sets generator frequency",
+        tk.Label(parent, text="Direct frequency",
                  fg=config.MUTED, bg=config.PANEL, font=("Arial", 8)).pack(anchor="w", padx=18)
 
         tk.Label(parent, text="Voltage (kV)", fg=config.MUTED, bg=config.PANEL).pack(
@@ -116,26 +116,26 @@ class UIMixin:
         self.close_button = tk.Button(
             parent, text="CLOSE BREAKER  [SPACE]", command=self.close_breaker,
             bg="#374151", fg=config.TEXT, relief="flat",
-            font=("Arial", 12, "bold"), padx=10, pady=12)
-        self.close_button.pack(fill="x", padx=18, pady=(17, 8))
+            font=("Arial", 11, "bold"), padx=10, pady=8)
+        self.close_button.pack(fill="x", padx=18, pady=(10, 5))
         tk.Button(parent, text="RESET", command=self.reset,
                   bg="#1f2937", fg=config.MUTED, relief="flat",
-                  padx=10, pady=8).pack(fill="x", padx=18)
+                  padx=10, pady=6).pack(fill="x", padx=18)
 
         tk.Label(parent, text="SYNC CHECK", fg=config.TEXT, bg=config.PANEL,
-                 font=("Arial", 11, "bold")).pack(anchor="w", padx=18, pady=(16, 6))
+                 font=("Arial", 11, "bold")).pack(anchor="w", padx=18, pady=(10, 4))
         self.sync_check = tk.Label(parent, justify="left", anchor="w",
                                    fg=config.MUTED, bg=config.PANEL,
-                                   font=("Courier New", 9))
+                                   font=("Courier New", 8))
         self.sync_check.pack(fill="x", padx=18)
         self.phase_big = tk.Label(parent, text="PHASE  +0.0°", fg=config.MUTED,
                                   bg=config.PANEL, font=("Arial", 14, "bold"))
-        self.phase_big.pack(anchor="w", padx=18, pady=(7, 0))
+        self.phase_big.pack(anchor="w", padx=18, pady=(4, 0))
         tk.Label(parent, text="LIVE MEASUREMENTS", fg=config.TEXT, bg=config.PANEL,
-                 font=("Arial", 11, "bold")).pack(anchor="w", padx=18, pady=(12, 6))
+                 font=("Arial", 11, "bold")).pack(anchor="w", padx=18, pady=(8, 4))
         self.measurements = tk.Label(parent, justify="left", anchor="w",
                                      fg=config.MUTED, bg=config.PANEL,
-                                     font=("Courier New", 10))
+                                     font=("Courier New", 8))
         self.measurements.pack(fill="x", padx=18)
 
     def start_frequency_hold(self, direction):
