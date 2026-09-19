@@ -149,29 +149,6 @@ class Synchroscope(tk.Tk):
                  fg=MUTED, bg=PANEL, font=("Arial", 8)).pack(
                      anchor="w", padx=18, pady=(0, 0))
 
-        tk.Label(parent, text="Frequency step size", fg=MUTED, bg=PANEL).pack(
-            anchor="w", padx=18, pady=(10, 3))
-
-        rate_frame = tk.Frame(parent, bg=PANEL)
-        rate_frame.pack(fill="x", padx=18)
-
-        self.slow_button = tk.Button(
-            rate_frame, text="SLOW", command=lambda: self.set_rate("slow"),
-            bg=BLUE, fg=TEXT, activebackground=BLUE, activeforeground=TEXT,
-            relief="flat", font=("Arial", 10, "bold"), padx=8, pady=8)
-        self.slow_button.pack(side="left", fill="x", expand=True, padx=(0, 4))
-
-        self.fast_button = tk.Button(
-            rate_frame, text="FAST", command=lambda: self.set_rate("fast"),
-            bg="#374151", fg=MUTED, activebackground=BLUE, activeforeground=TEXT,
-            relief="flat", font=("Arial", 10, "bold"), padx=8, pady=8)
-        self.fast_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
-
-        self.rate_label = tk.Label(
-            parent, text="ACTIVE: SLOW • STEP 0.01 Hz", fg=BLUE, bg=PANEL,
-            font=("Arial", 9, "bold"))
-        self.rate_label.pack(anchor="w", padx=18, pady=(3, 0))
-
         tk.Label(parent, text="Voltage (kV)", fg=MUTED, bg=PANEL).pack(
             anchor="w", padx=18, pady=(10, 0))
         self.voltage_scale = tk.Scale(
@@ -223,8 +200,7 @@ class Synchroscope(tk.Tk):
         if self.connected:
             return
 
-        step = 0.01 if self.frequency_rate <= 0.20 else 0.05
-        self.frequency_step = step
+        step = 0.01
 
         new_frequency = self.generator.frequency + direction * step
         self.generator.frequency = max(
@@ -237,28 +213,6 @@ class Synchroscope(tk.Tk):
         active = BLUE if direction > 0 else RED
         button.config(bg=active)
         self.after(90, lambda: button.config(bg="#374151"))
-
-    def set_rate(self, mode):
-        if mode == "slow":
-            self.frequency_rate = 0.20
-            step = 0.01
-            name = "SLOW"
-        else:
-            self.frequency_rate = 1.00
-            step = 0.05
-            name = "FAST"
-
-        self.frequency_step = step
-
-        self.slow_button.config(
-            bg=BLUE if mode == "slow" else "#374151",
-            fg=TEXT if mode == "slow" else MUTED)
-        self.fast_button.config(
-            bg=BLUE if mode == "fast" else "#374151",
-            fg=TEXT if mode == "fast" else MUTED)
-        self.rate_label.config(
-            text=f"ACTIVE: {name} • STEP {step:.2f} Hz",
-            fg=BLUE)
 
     def set_frequency_slider(self, value):
         if not self.connected:
@@ -324,7 +278,7 @@ class Synchroscope(tk.Tk):
 
         self.close_button.config(text="CLOSE BREAKER  [SPACE]", state="normal")
         self.status.config(text="SYNCHRONIZING", fg=AMBER)
-        self.set_rate("slow")
+
 
     def animate(self):
         now = time.perf_counter()
