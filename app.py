@@ -259,7 +259,7 @@ class Synchroscope(tk.Tk):
         df = abs(self.frequency_difference())
         dv = abs(self.voltage_difference())
 
-        if phase <= 10 and df <= 0.10 and dv <= 1.0:
+        if phase <= 10 and df < 0.067 and dv <= 1.0:
             self.connected = True
             self.generator.frequency = self.bus.frequency
             self.generator.voltage = self.bus.voltage
@@ -272,7 +272,7 @@ class Synchroscope(tk.Tk):
                 "Cannot close breaker",
                 "Synchronization conditions are not met.\n\n"
                 f"Phase error: {phase:.1f}° (need ≤ 10°)\n"
-                f"Frequency difference: {df:.2f} Hz (need ≤ 0.10 Hz)\n"
+                f"Frequency difference: {df:.2f} Hz (need < 0.067 Hz)\n"
                 f"Voltage difference: {dv:.1f} kV (need ≤ 1.0 kV)"
             )
 
@@ -359,7 +359,7 @@ class Synchroscope(tk.Tk):
         py = cy + (radius-18) * math.sin(a)
 
         phase_ok = abs(math.degrees(error)) <= 10
-        freq_ok = abs(self.frequency_difference()) <= 0.10
+        freq_ok = abs(self.frequency_difference()) < 0.067
         volt_ok = abs(self.voltage_difference()) <= 1.0
         ready = phase_ok and freq_ok and volt_ok
 
@@ -474,7 +474,7 @@ class Synchroscope(tk.Tk):
         if not self.connected:
             ready = (
                 abs(phase_deg) <= 10
-                and abs(df) <= .10
+                and abs(df) < .067
                 and abs(dv) <= 1.0
             )
             self.status.config(
