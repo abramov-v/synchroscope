@@ -34,8 +34,6 @@ Voltage difference:
 ΔV% = (Generator voltage - BUS voltage) / BUS voltage × 100
 ```
 
-For a 6.6 kV BUS, the allowed generator voltage is **6.60–6.93 kV**.
-
 ## Constants
 
 Main simulation constants are in **config.py**.
