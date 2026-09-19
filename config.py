@@ -10,6 +10,10 @@ GREEN = "#34d399"
 RED = "#f87171"
 AMBER = "#fbbf24"
 
+# Waveform colors — change these to customize the sinusoid colors.
+BUS_WAVEFORM = "#34d399"
+GEN_WAVEFORM = "#60a5fa"
+
 BUS_FREQUENCY = 50.00
 BUS_VOLTAGE = 6.6
 INITIAL_GEN_FREQUENCY = 49.80
