@@ -243,12 +243,15 @@ class Synchroscope(tk.Tk):
             self.voltage_scale.config(state="disabled")
             self.after(280, self.finish_close_breaker)
         else:
+            phase_ok = phase <= 10
+            freq_ok = df < 0.067
+            volt_ok = dv <= 1.0
             messagebox.showwarning(
-                "Cannot close breaker",
-                "Synchronization conditions are not met.\n\n"
-                f"Phase error: {phase:.1f}° (need ≤ 10°)\n"
-                f"Frequency difference: {df:.2f} Hz (need < 0.067 Hz)\n"
-                f"Voltage difference: {dv:.1f} kV (need ≤ 1.0 kV)"
+                "SYNC CHECK FAILED",
+                "BREAKER NOT CLOSED\n\n"
+                f"{'✓' if phase_ok else '✕'} PHASE       {phase:.1f}°  (≤ 10°)\n"
+                f"{'✓' if freq_ok else '✕'} FREQUENCY   {df:.3f} Hz  (< 0.067 Hz)\n"
+                f"{'✓' if volt_ok else '✕'} VOLTAGE     {dv:.1f} kV  (≤ 1.0 kV)"
             )
 
     def finish_close_breaker(self):
@@ -394,10 +397,22 @@ class Synchroscope(tk.Tk):
             x+8, y+8, anchor="nw",
             text="VOLTAGE WAVEFORM • RELATIVE PHASE",
             fill=MUTED, font=("Arial", 8, "bold"))
+        if abs(df) < 0.000001:
+            slip_period = "∞"
+            direction = "STATIONARY"
+        else:
+            slip_period = f"{1.0 / abs(df):.1f} s/rev"
+            direction = "CW / FAST" if df > 0 else "CCW / SLOW"
+
         self.canvas.create_text(
             x+width-8, y+8, anchor="ne",
-            text=f"ΔF {df:+.3f} Hz",
+            text=f"ΔF {df:+.3f} Hz  •  {slip_period}",
             fill=GREEN if abs(df) < 0.067 else BLUE,
+            font=("Arial", 8, "bold"))
+        self.canvas.create_text(
+            x+width-8, y+23, anchor="ne",
+            text=direction,
+            fill=GREEN if abs(df) < 0.067 else MUTED,
             font=("Arial", 8, "bold"))
 
         # Keep the 50 Hz carrier visually readable, but make amplitude
@@ -465,6 +480,29 @@ class Synchroscope(tk.Tk):
             x, y + 43, text=state, fill=blade_color,
             font=("Arial", 10, "bold"))
 
+    def draw_limit_bar(self, x, y, width, value, limit, label, unit=""):
+        self.canvas.create_text(
+            x, y-3, anchor="w", text=label,
+            fill=MUTED, font=("Arial", 8, "bold"))
+        bar_x = x + 58
+        bar_w = width - 58
+        self.canvas.create_rectangle(
+            bar_x, y-8, bar_x+bar_w, y+8,
+            outline="#263244", fill="#0b1220")
+        ratio = max(-1.0, min(1.0, value / limit if limit else 0.0))
+        center = bar_x + bar_w / 2
+        self.canvas.create_line(center, y-8, center, y+8, fill="#4b5563")
+        dot_x = center + ratio * (bar_w/2 - 5)
+        ok = abs(value) <= limit
+        self.canvas.create_oval(
+            dot_x-5, y-5, dot_x+5, y+5,
+            fill=GREEN if ok else RED, outline="")
+        self.canvas.create_text(
+            bar_x+bar_w+8, y, anchor="w",
+            text=f"{value:+.3f}{unit}",
+            fill=GREEN if ok else RED,
+            font=("Courier New", 8, "bold"))
+
     def draw(self):
         self.canvas.delete("all")
         w = max(self.canvas.winfo_width(), 600)
@@ -476,7 +514,15 @@ class Synchroscope(tk.Tk):
                          self.visual_phase, BLUE, self.phase_error())
         self.draw_synchroscope(w*.50, h*.30, r*0.82)
         self.draw_waveform(w*.08, h*.52, w*.84, h*.25)
-        self.draw_breaker(w*.50, h*.85, w*.70)
+
+        # Compact live tolerance indicators.
+        bar_x = w * .11
+        bar_w = w * .38
+        self.draw_limit_bar(bar_x, h*.79, bar_w, phase_deg, 10.0, "PHASE", "°")
+        self.draw_limit_bar(bar_x, h*.835, bar_w, df, 0.067, "ΔF", " Hz")
+        self.draw_limit_bar(bar_x, h*.88, bar_w, dv, 1.0, "ΔV", " kV")
+
+        self.draw_breaker(w*.70, h*.88, w*.42)
 
         phase_deg = math.degrees(self.phase_error())
         df = self.frequency_difference()
@@ -514,6 +560,8 @@ class Synchroscope(tk.Tk):
                 f"ΔV        {dv:>+6.1f} kV\n"
                 f"PHASE     {phase_deg:>+6.1f}°\n"
                 f"SLIP      {abs(df):>6.3f} Hz\n"
+                f"PERIOD    {('∞' if abs(df) < 0.000001 else f'{1.0 / abs(df):.1f} s/rev')}\n"
+                f"DIRECTION {'CW' if df > 0.000001 else 'CCW' if df < -0.000001 else 'STOP'}\n"
                 f"STATUS    {'CLOSED' if self.connected else 'OPEN'}"
             ))
 
