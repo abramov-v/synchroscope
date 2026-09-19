@@ -242,12 +242,21 @@ class UIMixin:
             self.after(int(config.BREAKER_ANIMATION_DURATION * 1000),
                        self.finish_close_breaker)
         else:
+            reasons = []
+            if phase > config.SYNC_PHASE_LIMIT_DEG:
+                reasons.append("Phase angle out of limit")
+            if df >= config.SYNC_FREQUENCY_LIMIT_HZ:
+                reasons.append("Frequency slip too large")
+            if dv > config.SYNC_VOLTAGE_LIMIT_KV:
+                reasons.append("Voltage mismatch too large")
             messagebox.showwarning(
-                "BREAKER BLOCKED — SYNC CHECK",
-                "Breaker close is blocked until all synchronization conditions are met.\n\n"
-                f"Phase error: {phase:.1f}° (need ≤ 10°)\n"
-                f"Frequency difference: {df:.2f} Hz (need < 0.067 Hz)\n"
-                f"Voltage difference: {dv:.1f} kV (need ≤ 1.0 kV)"
+                "⚠ SYNC CHECK FAILED",
+                "BREAKER BLOCKED\n\n"
+                + "\n".join(f"• {reason}" for reason in reasons)
+                + "\n\n"
+                f"PHASE  {self.simulation.phase_error_degrees():+.1f}°  (limit ±10°)\n"
+                f"ΔF     {self.simulation.frequency_difference():+.3f} Hz  (limit <0.067 Hz)\n"
+                f"ΔV     {self.simulation.voltage_difference():+.2f} kV  (limit ±1.00 kV)"
             )
 
     def finish_close_breaker(self):
