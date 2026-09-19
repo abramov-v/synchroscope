@@ -446,28 +446,30 @@ class Synchroscope(tk.Tk):
             fill=GREEN if abs(df) < 0.067 else BLUE,
             font=("Arial", 8, "bold"))
 
-        # Display a readable 2.2 cycles. The real 50 Hz carrier is not animated
-        # at 50 cycles/sec; only the physically meaningful relative phase/slip
-        # is animated.
+        # Keep the 50 Hz carrier visually readable, but make amplitude
+        # proportional to the actual RMS voltage of each source.
+        nominal_voltage = 110.0
         samples = 240
-        for color, label, relative_phase in [
-            ("#d1d5db", "BUS", 0.0),
-            (BLUE, "GEN", phase),
+        for color, label, relative_phase, voltage in [
+            ("#d1d5db", "BUS", 0.0, self.bus.voltage),
+            (BLUE, "GEN", phase, self.generator.voltage),
         ]:
             points = []
+            amplitude = height * 0.30 * max(
+                0.15, min(1.20, voltage / nominal_voltage))
             for i in range(samples):
                 t = i / (samples - 1)
                 local_phase = 2 * math.pi * 2.2 * t + relative_phase
                 xx = x + t * width
-                yy = mid - math.sin(local_phase) * (height * 0.30)
+                yy = mid - math.sin(local_phase) * amplitude
                 points.extend((xx, yy))
 
             self.canvas.create_line(
                 *points, fill=color, width=2, smooth=True)
             self.canvas.create_text(
                 x+width-8, y+22 + (0 if label == "BUS" else 15),
-                anchor="ne", text=label, fill=color,
-                font=("Arial", 8, "bold"))
+                anchor="ne", text=f"{label} {voltage:.1f} kV",
+                fill=color, font=("Arial", 8, "bold"))
 
     def draw_breaker(self, x, y, width):
         left = x - width/2
