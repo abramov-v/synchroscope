@@ -153,11 +153,11 @@ class DrawingMixin:
         h = max(self.canvas.winfo_height(), 450)
         radius = min(w, h) * 0.16
 
-        self.draw_vector(w*.22, h*.30, radius, "BUS / GRID", "#d1d5db", 0.0)
+        self.draw_vector(w*.22, h*.30, radius, "BUS / GRID", config.GREEN, 0.0)
         self.draw_vector(
             w*.78, h*.30, radius, "INCOMING GENERATOR",
             config.BLUE, self.simulation.phase_error())
-        self.draw_synchroscope(w*.50, h*.30, radius*0.82)
+        self.draw_synchroscope(w*.50, h*.30, radius*0.92)
         self.draw_waveform(w*.08, h*.52, w*.84, h*.25)
         self.draw_breaker(w*.50, h*.85, w*.70)
 
