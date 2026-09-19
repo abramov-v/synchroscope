@@ -20,6 +20,11 @@ Requirements: Python 3.x + Tkinter. No third-party packages.
 - **CLOSE BREAKER / SPACE** — close breaker when sync conditions are met
 - **RESET** — restore initial state
 
+
+<img width="2534" height="1449" alt="image" src="https://github.com/user-attachments/assets/aaef13ed-5267-440b-a56d-1ccf7f44a68b" />
+
+
+
 ## Sync conditions
 
 Breaker closes only when:
