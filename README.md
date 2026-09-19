@@ -1,68 +1,72 @@
 # Synchroscope Simulator
 
-Educational Tkinter simulator for synchronizing an incoming generator with a 50 Hz grid.
-
-## Features
-
-- 50 Hz BUS / GRID reference
-- Incoming generator with adjustable frequency
-- 0.01 Hz frequency steps and direct frequency slider
-- Manual excitation control with smooth generator-voltage response
-- Optional automatic AVR
-- Relative phase visualization
-- Synchroscope with sync window and FAST / SLOW / HOLD indication
-- BUS and generator voltage waveforms
-- Sync-check before breaker closing
-- Failed sync-check diagnostics with the blocking reason
-- Electrical single-line breaker diagram with animated opening/closing blade
-- Live measurements
-- Keyboard shortcuts
-
-## Requirements
-
-- Python 3.x
-- Tkinter
-- No third-party Python packages
+Educational Tkinter simulator for synchronizing an incoming generator with a 50 Hz BUS.
 
 ## Run
 
-    python app.py
+```bash
+python app.py
+```
+
+Requirements: Python 3.x + Tkinter. No third-party packages.
 
 ## Controls
 
-- SLOW / FAST — change generator frequency by 0.01 Hz
-- Hold SLOW / FAST — continuously adjust frequency
-- Up / Down — same one-step frequency adjustment from the keyboard
-- Frequency slider — directly set generator frequency
-- EXCITATION slider / - / + — manually adjust generator excitation
-- AUTO AVR — automatically adjust excitation toward BUS voltage
-- SPACE / CLOSE BREAKER — attempt to close the breaker
-- RESET — restore the initial generator state
+- **SLOW / FAST** — generator frequency ±0.01 Hz
+- **Hold SLOW / FAST** — continuous frequency adjustment
+- **Frequency slider** — set frequency directly
+- **EXCITATION / - / +** — adjust generator voltage
+- **AUTO AVR** — automatic voltage adjustment
+- **CLOSE BREAKER / SPACE** — close breaker when sync conditions are met
+- **RESET** — restore initial state
 
-## Synchronization check
+## Sync conditions
 
-The breaker can close only when all conditions are satisfied:
+Breaker closes only when:
 
-- Phase error <= 10 degrees
-- Frequency difference < 0.067 Hz
-- Generator voltage difference is from 0% to +5% relative to BUS voltage
-- Generator voltage may not be below BUS voltage for synchronization
+- Phase error ≤ **10°**
+- Frequency difference < **0.067 Hz**
+- Generator voltage is **0% to +5% above BUS**
 
-The voltage synchronization criterion is calculated as:
+Voltage difference:
 
-    ΔV% = (Generator voltage - BUS voltage) / BUS voltage × 100
+```
+ΔV% = (Generator voltage - BUS voltage) / BUS voltage × 100
+```
 
-With the default 6.6 kV BUS:
+For a 6.6 kV BUS, the allowed generator voltage is **6.60–6.93 kV**.
 
-- 0% = 6.60 kV
-- +5% = 6.93 kV
+## Constants
 
-## Breaker behavior
+Main simulation constants are in **config.py**.
 
-The breaker is physically blocked when synchronization conditions are not met. A failed close attempt shows which condition is outside its allowed range.
+To change frequency:
 
-When synchronization is ready, the interface indicates CLOSE NOW and the breaker can be closed with the button or SPACE.
+```python
+BUS_FREQUENCY = 50.00
+INITIAL_GEN_FREQUENCY = 49.80
+FREQUENCY_STEP = 0.01
+FREQUENCY_MIN = 49.0
+FREQUENCY_MAX = 51.0
+```
 
-## Educational scope
+To change voltage:
 
-This is an educational visualization and control simulation. It is not a substitute for real protection, synchronization, AVR, or generator control equipment.
+```python
+BUS_VOLTAGE = 6.6
+INITIAL_GEN_VOLTAGE = 6.51
+```
+
+Sync voltage limits are also in **config.py**:
+
+```python
+SYNC_VOLTAGE_MIN_PERCENT = 0.0
+SYNC_VOLTAGE_MAX_PERCENT = 5.0
+```
+
+Other sync limits:
+
+```python
+SYNC_PHASE_LIMIT_DEG = 10.0
+SYNC_FREQUENCY_LIMIT_HZ = 0.067
+```
