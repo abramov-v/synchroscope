@@ -228,10 +228,11 @@ class UIMixin:
     def close_breaker(self):
         phase = abs(self.simulation.phase_error_degrees())
         df = abs(self.simulation.frequency_difference())
-        dv = abs(self.simulation.voltage_difference())
+        dv_percent = self.simulation.voltage_difference_percent()
         if (phase <= config.SYNC_PHASE_LIMIT_DEG
                 and df < config.SYNC_FREQUENCY_LIMIT_HZ
-                and dv <= config.SYNC_VOLTAGE_LIMIT_KV):
+                and config.SYNC_VOLTAGE_MIN_PERCENT <= dv_percent
+                <= config.SYNC_VOLTAGE_MAX_PERCENT):
             self.breaker_animating = True
             self.breaker_anim_start = time.perf_counter()
             self.close_button.config(text="CLOSING...", state="disabled")
@@ -247,8 +248,10 @@ class UIMixin:
                 reasons.append("Phase angle out of limit")
             if df >= config.SYNC_FREQUENCY_LIMIT_HZ:
                 reasons.append("Frequency slip too large")
-            if dv > config.SYNC_VOLTAGE_LIMIT_KV:
-                reasons.append("Voltage mismatch too large")
+            if dv_percent < config.SYNC_VOLTAGE_MIN_PERCENT:
+                reasons.append("Generator voltage is below BUS")
+            elif dv_percent > config.SYNC_VOLTAGE_MAX_PERCENT:
+                reasons.append("Generator voltage is above +5% limit")
             messagebox.showwarning(
                 "⚠ SYNC CHECK FAILED",
                 "BREAKER BLOCKED\n\n"
@@ -256,7 +259,7 @@ class UIMixin:
                 + "\n\n"
                 f"PHASE  {self.simulation.phase_error_degrees():+.1f}°  (limit ±10°)\n"
                 f"ΔF     {self.simulation.frequency_difference():+.3f} Hz  (limit <0.067 Hz)\n"
-                f"ΔV     {self.simulation.voltage_difference():+.2f} kV  (limit ±1.00 kV)"
+                f"ΔV     {dv_percent:+.2f}%  (allowed 0% to +5%)"
             )
 
     def finish_close_breaker(self):
