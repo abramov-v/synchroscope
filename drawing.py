@@ -94,8 +94,8 @@ class DrawingMixin:
 
         samples = 240
         for color, label, relative_phase, voltage in [
-            ("#d1d5db", "BUS", 0.0, self.simulation.bus.voltage),
-            (config.BLUE, "GEN", phase, self.simulation.generator.voltage),
+            (config.BUS_WAVEFORM, "BUS", 0.0, self.simulation.bus.voltage),
+            (config.GEN_WAVEFORM, "GEN", phase, self.simulation.generator.voltage),
         ]:
             points = []
             amplitude = height * 0.30 * max(
