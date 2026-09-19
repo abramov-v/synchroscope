@@ -96,22 +96,40 @@ class UIMixin:
         tk.Label(parent, text="Direct frequency",
                  fg=config.MUTED, bg=config.PANEL, font=("Arial", 8)).pack(anchor="w", padx=18)
 
-        tk.Label(parent, text="Voltage (kV)", fg=config.MUTED, bg=config.PANEL).pack(
+        tk.Label(parent, text="EXCITATION", fg=config.MUTED, bg=config.PANEL,
+                 font=("Arial", 9, "bold")).pack(
             anchor="w", padx=18, pady=(10, 0))
-        self.voltage_scale = tk.Scale(
-            parent, from_=6.0, to=7.2, resolution=0.01, orient="horizontal",
+        excitation_row = tk.Frame(parent, bg=config.PANEL)
+        excitation_row.pack(fill="x", padx=18)
+        self.excitation_minus = tk.Button(
+            excitation_row, text="−", command=lambda: self.change_excitation(-1),
+            bg="#374151", fg=config.TEXT, relief="flat",
+            font=("Arial", 11, "bold"), width=3)
+        self.excitation_minus.pack(side="left")
+        self.excitation_scale = tk.Scale(
+            excitation_row, from_=config.EXCITATION_MIN, to=config.EXCITATION_MAX,
+            resolution=config.EXCITATION_STEP, orient="horizontal",
             bg=config.PANEL, fg=config.TEXT, highlightthickness=0,
             troughcolor=config.GRID, activebackground=config.BLUE,
-            command=self.set_voltage)
-        self.voltage_scale.set(self.simulation.generator.voltage)
-        self.voltage_scale.pack(fill="x", padx=18)
+            showvalue=False, command=self.set_excitation)
+        self.excitation_scale.set(self.simulation.excitation)
+        self.excitation_scale.pack(side="left", fill="x", expand=True, padx=4)
+        self.excitation_plus = tk.Button(
+            excitation_row, text="+", command=lambda: self.change_excitation(1),
+            bg="#374151", fg=config.TEXT, relief="flat",
+            font=("Arial", 11, "bold"), width=3)
+        self.excitation_plus.pack(side="left")
+        self.excitation_value = tk.Label(
+            parent, text="", fg=config.TEXT, bg=config.PANEL,
+            font=("Courier New", 8, "bold"))
+        self.excitation_value.pack(anchor="w", padx=18, pady=(1, 0))
 
         self.avr_var = tk.BooleanVar(value=False)
         tk.Checkbutton(parent, text="AUTO AVR", variable=self.avr_var,
                        command=self.toggle_avr, bg=config.PANEL, fg=config.MUTED,
                        selectcolor=config.BG, activebackground=config.PANEL,
                        activeforeground=config.TEXT, highlightthickness=0).pack(
-                           anchor="w", padx=14, pady=(8, 0))
+                           anchor="w", padx=14, pady=(6, 0))
 
         self.close_button = tk.Button(
             parent, text="CLOSE BREAKER  [SPACE]", command=self.close_breaker,
@@ -183,12 +201,24 @@ class UIMixin:
         if not self.connected:
             self.simulation.generator.frequency = float(value)
 
-    def set_voltage(self, value):
-        if not self.connected:
-            self.simulation.generator.voltage = float(value)
+    def set_excitation(self, value):
+        if not self.connected and not self.avr:
+            self.simulation.excitation = float(value)
+
+    def change_excitation(self, direction):
+        if self.connected or self.avr:
+            return
+        value = self.simulation.excitation + direction * config.EXCITATION_STEP
+        value = max(config.EXCITATION_MIN, min(config.EXCITATION_MAX, value))
+        self.simulation.excitation = value
+        self.excitation_scale.set(value)
 
     def toggle_avr(self):
         self.avr = self.avr_var.get()
+        state = "disabled" if self.avr or self.connected else "normal"
+        self.excitation_scale.config(state=state)
+        self.excitation_minus.config(state=state)
+        self.excitation_plus.config(state=state)
 
     def on_space(self, event=None):
         if not self.connected:
@@ -206,7 +236,9 @@ class UIMixin:
             self.breaker_anim_start = time.perf_counter()
             self.close_button.config(text="CLOSING...", state="disabled")
             self.frequency_scale.config(state="disabled")
-            self.voltage_scale.config(state="disabled")
+            self.excitation_scale.config(state="disabled")
+            self.excitation_minus.config(state="disabled")
+            self.excitation_plus.config(state="disabled")
             self.after(int(config.BREAKER_ANIMATION_DURATION * 1000),
                        self.finish_close_breaker)
         else:
@@ -235,8 +267,10 @@ class UIMixin:
         self.simulation.reset_generator()
         self.frequency_scale.config(state="normal")
         self.frequency_scale.set(self.simulation.generator.frequency)
-        self.voltage_scale.config(state="normal")
-        self.voltage_scale.set(self.simulation.generator.voltage)
+        self.excitation_scale.config(state="normal")
+        self.excitation_minus.config(state="normal")
+        self.excitation_plus.config(state="normal")
+        self.excitation_scale.set(self.simulation.excitation)
         self.avr_var.set(False)
         self.avr = False
         self.close_button.config(text="CLOSE BREAKER  [SPACE]", state="normal",
