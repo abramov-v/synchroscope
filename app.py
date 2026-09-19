@@ -18,6 +18,8 @@ class Synchroscope(AnimationMixin, DrawingMixin, UIMixin, tk.Tk):
         self.breaker_anim_duration = 0.28
 
         self.simulation = Simulation()
+        self.frequency_hold_direction = 0
+        self.frequency_hold_job = None
         self.init_animation()
         self.build_ui()
 
