@@ -183,14 +183,12 @@ class DrawingMixin:
             text=f"{self.simulation.generator.frequency:.2f} Hz")
         self.measurements.config(
             text=(
-                f"BUS       {self.simulation.bus.frequency:>6.2f} Hz\n"
-                f"GEN       {self.simulation.generator.frequency:>6.2f} Hz\n"
-                f"ΔF        {df:>+6.3f} Hz\n"
-                f"BUS V     {self.simulation.bus.voltage:>6.1f} kV\n"
-                f"GEN V     {self.simulation.generator.voltage:>6.1f} kV\n"
-                f"ΔV        {dv:>+6.1f} kV\n"
-                f"PHASE     {phase_deg:>+6.1f}°\n"
-                f"SLIP      {abs(df):>6.3f} Hz\n"
+                f"BUS/GEN   {self.simulation.bus.frequency:.2f}/{self.simulation.generator.frequency:.2f} Hz\n"
+                f"ΔF        {df:+.3f} Hz\n"
+                f"BUS/GEN V {self.simulation.bus.voltage:.2f}/{self.simulation.generator.voltage:.2f} kV\n"
+                f"ΔV        {dv:+.2f} kV\n"
+                f"PHASE     {phase_deg:+.1f}°\n"
+                f"SLIP      {abs(df):.3f} Hz\n"
                 f"STATUS    {'CLOSED' if self.connected else 'OPEN'}"
             ))
         self.slip_label.config(
