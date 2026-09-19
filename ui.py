@@ -99,7 +99,7 @@ class UIMixin:
         tk.Label(parent, text="Voltage (kV)", fg=config.MUTED, bg=config.PANEL).pack(
             anchor="w", padx=18, pady=(10, 0))
         self.voltage_scale = tk.Scale(
-            parent, from_=105, to=115, resolution=0.1, orient="horizontal",
+            parent, from_=6.0, to=7.2, resolution=0.01, orient="horizontal",
             bg=config.PANEL, fg=config.TEXT, highlightthickness=0,
             troughcolor=config.GRID, activebackground=config.BLUE,
             command=self.set_voltage)
