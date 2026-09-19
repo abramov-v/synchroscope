@@ -32,5 +32,9 @@ class AnimationMixin:
         else:
             self.simulation.advance_generator(dt, self.avr)
 
+            # Keep the voltage control synchronized with AUTO AVR.
+            if self.avr and hasattr(self, "voltage_scale"):
+                self.voltage_scale.set(self.simulation.generator.voltage)
+
         self.draw()
         self.after(config.FRAME_MS, self.animate)
