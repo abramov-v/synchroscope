@@ -31,7 +31,6 @@ class Synchroscope(tk.Tk):
         self.bus = Generator(50.00, 0.0, 110.0)
         self.generator = Generator(49.80, math.radians(-70), 108.5)
 
-        # SLOW/FAST selects the size of each frequency adjustment.
         self.frequency_rate = 0.20
         self.frequency_step = 0.01
         self.frequency_min = 49.0
@@ -126,7 +125,22 @@ class Synchroscope(tk.Tk):
         tk.Label(parent, text="One click = one frequency step", fg=MUTED,
                  bg=PANEL, font=("Arial", 8)).pack(anchor="w", padx=18, pady=(3, 0))
 
-        tk.Label(parent, text="Frequency change rate", fg=MUTED, bg=PANEL).pack(
+        tk.Label(parent, text="Optional frequency slider", fg=MUTED, bg=PANEL).pack(
+            anchor="w", padx=18, pady=(10, 2))
+
+        self.frequency_scale = tk.Scale(
+            parent, from_=49.0, to=51.0, resolution=0.01,
+            orient="horizontal", bg=PANEL, fg=TEXT, highlightthickness=0,
+            troughcolor=GRID, activebackground=BLUE,
+            command=self.set_frequency_slider)
+        self.frequency_scale.set(self.generator.frequency)
+        self.frequency_scale.pack(fill="x", padx=18)
+
+        tk.Label(parent, text="Slider directly sets generator frequency",
+                 fg=MUTED, bg=PANEL, font=("Arial", 8)).pack(
+                     anchor="w", padx=18, pady=(0, 0))
+
+        tk.Label(parent, text="Frequency step size", fg=MUTED, bg=PANEL).pack(
             anchor="w", padx=18, pady=(10, 3))
 
         rate_frame = tk.Frame(parent, bg=PANEL)
@@ -195,8 +209,8 @@ class Synchroscope(tk.Tk):
             self.frequency_min,
             min(self.frequency_max, new_frequency)
         )
+        self.frequency_scale.set(self.generator.frequency)
 
-        # Brief visual feedback only; the button is never latched.
         button = self.up_button if direction > 0 else self.down_button
         active = BLUE if direction > 0 else RED
         button.config(bg=active)
@@ -224,6 +238,10 @@ class Synchroscope(tk.Tk):
             text=f"ACTIVE: {name} • STEP {step:.2f} Hz",
             fg=BLUE)
 
+    def set_frequency_slider(self, value):
+        if not self.connected:
+            self.generator.frequency = float(value)
+
     def set_voltage(self, value):
         if not self.connected:
             self.generator.voltage = float(value)
@@ -246,6 +264,7 @@ class Synchroscope(tk.Tk):
             self.generator.frequency = self.bus.frequency
             self.generator.voltage = self.bus.voltage
             self.close_button.config(text="BREAKER CLOSED", state="disabled")
+            self.frequency_scale.config(state="disabled")
             self.voltage_scale.config(state="disabled")
             self.status.config(text="CONNECTED — SYNCHRONIZED", fg=GREEN)
         else:
@@ -263,6 +282,8 @@ class Synchroscope(tk.Tk):
         self.generator.phase = math.radians(-70)
         self.generator.voltage = 108.5
 
+        self.frequency_scale.config(state="normal")
+        self.frequency_scale.set(self.generator.frequency)
         self.voltage_scale.config(state="normal")
         self.voltage_scale.set(self.generator.voltage)
 
