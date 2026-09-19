@@ -31,22 +31,18 @@ class Synchroscope(tk.Tk):
         self.bus = Generator(50.00, 0.0, 110.0)
         self.generator = Generator(49.80, math.radians(-70), 108.5)
 
-        # SLOW/FAST is the frequency ramp rate.
-        # SPEED UP / SPEED DOWN are held by the operator to change frequency.
+        # SLOW/FAST selects the size of each frequency adjustment.
         self.frequency_rate = 0.20
+        self.frequency_step = 0.01
         self.frequency_min = 49.0
         self.frequency_max = 51.0
-        self.frequency_direction = 0
         self.avr = False
 
         self.build_ui()
 
-        # Spacebar = breaker close. Up/Down arrows also work as frequency controls.
         self.bind("<space>", self.on_space)
-        self.bind("<KeyPress-Up>", lambda event: self.start_frequency_change(1))
-        self.bind("<KeyRelease-Up>", lambda event: self.stop_frequency_change())
-        self.bind("<KeyPress-Down>", lambda event: self.start_frequency_change(-1))
-        self.bind("<KeyRelease-Down>", lambda event: self.stop_frequency_change())
+        self.bind("<Up>", lambda event: self.change_frequency(1))
+        self.bind("<Down>", lambda event: self.change_frequency(-1))
 
         self.after(30, self.animate)
 
@@ -113,7 +109,7 @@ class Synchroscope(tk.Tk):
 
         self.down_button = tk.Button(
             freq_buttons, text="▼  SPEED DOWN",
-            command=lambda: self.start_frequency_change(-1),
+            command=lambda: self.change_frequency(-1),
             bg="#374151", fg=TEXT, activebackground=RED,
             activeforeground=TEXT, relief="flat",
             font=("Arial", 10, "bold"), padx=4, pady=10)
@@ -121,13 +117,13 @@ class Synchroscope(tk.Tk):
 
         self.up_button = tk.Button(
             freq_buttons, text="▲  SPEED UP",
-            command=lambda: self.start_frequency_change(1),
+            command=lambda: self.change_frequency(1),
             bg="#374151", fg=TEXT, activebackground=BLUE,
             activeforeground=TEXT, relief="flat",
             font=("Arial", 10, "bold"), padx=4, pady=10)
         self.up_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
 
-        tk.Label(parent, text="Hold button to change frequency", fg=MUTED,
+        tk.Label(parent, text="One click = one frequency step", fg=MUTED,
                  bg=PANEL, font=("Arial", 8)).pack(anchor="w", padx=18, pady=(3, 0))
 
         tk.Label(parent, text="Frequency change rate", fg=MUTED, bg=PANEL).pack(
@@ -149,7 +145,7 @@ class Synchroscope(tk.Tk):
         self.fast_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
 
         self.rate_label = tk.Label(
-            parent, text="ACTIVE: SLOW • 0.20 Hz/s", fg=BLUE, bg=PANEL,
+            parent, text="ACTIVE: SLOW • STEP 0.01 Hz", fg=BLUE, bg=PANEL,
             font=("Arial", 9, "bold"))
         self.rate_label.pack(anchor="w", padx=18, pady=(3, 0))
 
@@ -187,25 +183,36 @@ class Synchroscope(tk.Tk):
             font=("Courier New", 10))
         self.measurements.pack(fill="x", padx=18)
 
-    def start_frequency_change(self, direction):
+    def change_frequency(self, direction):
         if self.connected:
             return
-        self.frequency_direction = direction
-        self.up_button.config(bg=BLUE if direction > 0 else "#374151")
-        self.down_button.config(bg=RED if direction < 0 else "#374151")
 
-    def stop_frequency_change(self):
-        self.frequency_direction = 0
-        self.up_button.config(bg="#374151")
-        self.down_button.config(bg="#374151")
+        step = 0.01 if self.frequency_rate <= 0.20 else 0.05
+        self.frequency_step = step
+
+        new_frequency = self.generator.frequency + direction * step
+        self.generator.frequency = max(
+            self.frequency_min,
+            min(self.frequency_max, new_frequency)
+        )
+
+        # Brief visual feedback only; the button is never latched.
+        button = self.up_button if direction > 0 else self.down_button
+        active = BLUE if direction > 0 else RED
+        button.config(bg=active)
+        self.after(90, lambda: button.config(bg="#374151"))
 
     def set_rate(self, mode):
         if mode == "slow":
             self.frequency_rate = 0.20
+            step = 0.01
             name = "SLOW"
         else:
             self.frequency_rate = 1.00
+            step = 0.05
             name = "FAST"
+
+        self.frequency_step = step
 
         self.slow_button.config(
             bg=BLUE if mode == "slow" else "#374151",
@@ -214,7 +221,7 @@ class Synchroscope(tk.Tk):
             bg=BLUE if mode == "fast" else "#374151",
             fg=TEXT if mode == "fast" else MUTED)
         self.rate_label.config(
-            text=f"ACTIVE: {name} • {self.frequency_rate:.2f} Hz/s",
+            text=f"ACTIVE: {name} • STEP {step:.2f} Hz",
             fg=BLUE)
 
     def set_voltage(self, value):
@@ -255,7 +262,6 @@ class Synchroscope(tk.Tk):
         self.generator.frequency = 49.80
         self.generator.phase = math.radians(-70)
         self.generator.voltage = 108.5
-        self.frequency_direction = 0
 
         self.voltage_scale.config(state="normal")
         self.voltage_scale.set(self.generator.voltage)
@@ -265,7 +271,6 @@ class Synchroscope(tk.Tk):
 
         self.close_button.config(text="CLOSE BREAKER  [SPACE]", state="normal")
         self.status.config(text="SYNCHRONIZING", fg=AMBER)
-        self.stop_frequency_change()
         self.set_rate("slow")
 
     def animate(self):
@@ -280,12 +285,6 @@ class Synchroscope(tk.Tk):
             self.generator.frequency = self.bus.frequency
             self.generator.voltage = self.bus.voltage
         else:
-            if self.frequency_direction:
-                self.generator.frequency += self.frequency_direction * self.frequency_rate * dt
-                self.generator.frequency = max(
-                    self.frequency_min,
-                    min(self.frequency_max, self.generator.frequency))
-
             if self.avr:
                 error_v = self.bus.voltage - self.generator.voltage
                 self.generator.voltage += error_v * min(dt * 2.0, 1.0)
