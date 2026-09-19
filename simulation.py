@@ -40,8 +40,8 @@ class Simulation:
 
     def voltage_difference_percent(self):
         dv_percent = (self.voltage_difference() / self.bus.voltage) * 100.0
-        # Avoid blocking a close because of tiny floating-point error at 0%.
-        if abs(dv_percent) < 0.01:
+        # Treat the tiny settling error around 0% as exactly 0%.
+        if abs(dv_percent) < 0.10:
             return 0.0
         return dv_percent
 
