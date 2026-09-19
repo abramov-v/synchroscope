@@ -18,6 +18,7 @@ class Simulation:
             math.radians(INITIAL_GEN_PHASE_DEG),
             INITIAL_GEN_VOLTAGE,
         )
+        self.excitation = INITIAL_EXCITATION
 
     @staticmethod
     def wrap_phase(angle):
@@ -48,6 +49,13 @@ class Simulation:
         self.generator.frequency = INITIAL_GEN_FREQUENCY
         self.generator.phase = math.radians(INITIAL_GEN_PHASE_DEG)
         self.generator.voltage = INITIAL_GEN_VOLTAGE
+        self.excitation = INITIAL_EXCITATION
+
+    def excitation_target_voltage(self):
+        return (
+            BUS_VOLTAGE
+            + (self.excitation - 50.0) * EXCITATION_KV_PER_PERCENT
+        )
 
     def advance_bus(self, dt):
         self.bus.advance(dt)
@@ -55,10 +63,15 @@ class Simulation:
     def advance_generator(self, dt, avr=False):
         if avr:
             error_v = self.bus.voltage - self.generator.voltage
-            self.generator.voltage += error_v * min(dt * 2.0, 1.0)
+            self.excitation += error_v * AVR_GAIN * dt
+        target_voltage = self.excitation_target_voltage()
+        self.generator.voltage += (
+            target_voltage - self.generator.voltage
+        ) * min(dt * AVR_RESPONSE, 1.0)
         self.generator.advance(dt)
 
     def connect_generator(self):
         self.generator.phase = self.bus.phase
         self.generator.frequency = self.bus.frequency
         self.generator.voltage = self.bus.voltage
+        self.excitation = 50.0
