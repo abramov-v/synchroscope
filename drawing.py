@@ -197,37 +197,38 @@ class DrawingMixin:
                 fill=color, font=("Arial", 8, "bold"))
 
     def draw_breaker(self, x, y, width):
-        # Simplified one-line diagram:
-        # BUS / GRID ---- [ BREAKER ] ---- INCOMING GENERATOR
+        # Electrical single-line diagram: BUS -> CB -> GENERATOR.
         left = x - width / 2
         right = x + width / 2
-        gap = 28
-        left_contact = x - gap
-        right_contact = x + gap
         line_y = y + 8
+        contact_gap = 34
+        left_contact = x - contact_gap
+        right_contact = x + contact_gap
 
-        # Bus side and generator side conductors.
+        # Bus / grid vertical busbar and incoming generator terminal.
         self.canvas.create_line(
-            left, line_y, left_contact, line_y,
+            left + 18, line_y - 28, left + 18, line_y + 28,
             fill=config.GREEN, width=5)
         self.canvas.create_line(
-            right_contact, line_y, right, line_y,
+            left + 18, line_y, left_contact, line_y,
+            fill=config.GREEN, width=5)
+
+        self.canvas.create_line(
+            right_contact, line_y, right - 24, line_y,
+            fill=config.BLUE, width=5)
+        self.canvas.create_line(
+            right - 24, line_y - 28, right - 24, line_y + 28,
             fill=config.BLUE, width=5)
 
-        # Simple bus/grid marker.
-        for offset in (-7, 0, 7):
-            self.canvas.create_line(
-                left + 18, line_y - 12 + offset,
-                left + 18, line_y + 12 + offset,
-                fill=config.GREEN, width=2)
-
-        # Generator marker.
-        self.canvas.create_oval(
-            right - 25, line_y - 13, right - 1, line_y + 13,
-            outline=config.BLUE, width=2)
+        # Breaker enclosure and terminals.
+        box_w, box_h = 78, 48
+        self.canvas.create_rectangle(
+            x - box_w/2, line_y - box_h/2,
+            x + box_w/2, line_y + box_h/2,
+            outline="#4b5563", width=2)
         self.canvas.create_text(
-            right - 13, line_y, text="G",
-            fill=config.BLUE, font=("Arial", 9, "bold"))
+            x, line_y - 22, text="CB",
+            fill=config.TEXT, font=("Arial", 8, "bold"))
 
         self.canvas.create_oval(
             left_contact-6, line_y-6, left_contact+6, line_y+6,
@@ -243,28 +244,30 @@ class DrawingMixin:
                 / self.breaker_anim_duration)
             blade_end_y = line_y - 30 * (1.0 - progress)
             blade_color = config.AMBER
-            state = "BREAKER CLOSING..."
+            state = "CLOSING..."
         else:
             blade_color = config.GREEN if self.connected else config.RED
             blade_end_y = line_y if self.connected else line_y - 30
-            state = "BREAKER CLOSED" if self.connected else "BREAKER OPEN"
+            state = "CLOSED" if self.connected else "OPEN"
 
-        # Keep the original animated breaker blade.
+        # Same breaker blade animation as before.
         self.canvas.create_line(
             left_contact, line_y, right_contact, blade_end_y,
-            fill=blade_color, width=7)
+            fill="#1f2937", width=11)
+        self.canvas.create_line(
+            left_contact, line_y, right_contact, blade_end_y,
+            fill=blade_color, width=6)
 
         self.canvas.create_text(
-            left + 35, y - 18,
-            text="BUS / GRID", fill=config.GREEN,
-            font=("Arial", 9, "bold"), anchor="w")
+            left + 42, y - 20, text=f"BUS  {self.simulation.bus.voltage:.2f} kV",
+            fill=config.GREEN, font=("Arial", 9, "bold"), anchor="w")
         self.canvas.create_text(
-            right - 35, y - 18,
-            text="INCOMING GENERATOR", fill=config.BLUE,
-            font=("Arial", 9, "bold"), anchor="e")
+            right - 42, y - 20,
+            text=f"GEN  {self.simulation.generator.voltage:.2f} kV",
+            fill=config.BLUE, font=("Arial", 9, "bold"), anchor="e")
         self.canvas.create_text(
-            x, y + 43, text=state, fill=blade_color,
-            font=("Arial", 10, "bold"))
+            x, y + 42, text=f"BREAKER {state}",
+            fill=blade_color, font=("Arial", 9, "bold"))
 
     def draw(self):
         self.canvas.delete("all")
@@ -306,6 +309,7 @@ class DrawingMixin:
                 f"ΔF        {df:+.3f} Hz\n"
                 f"BUS/GEN V {self.simulation.bus.voltage:.2f}/{self.simulation.generator.voltage:.2f} kV\n"
                 f"ΔV        {dv:+.2f} kV\n"
+                f"EXCITATION {self.simulation.excitation:5.1f}%\n"
                 f"PHASE     {phase_deg:+.1f}°\n"
                 f"SLIP      {abs(df):.3f} Hz\n"
                 f"STATUS    {'CLOSED' if self.connected else 'OPEN'}"
