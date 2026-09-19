@@ -114,13 +114,38 @@ class DrawingMixin:
                 fill=color, font=("Arial", 8, "bold"))
 
     def draw_breaker(self, x, y, width):
-        left, right = x - width/2, x + width/2
-        gap = 26
-        left_contact, right_contact = x - gap, x + gap
+        # Simplified one-line diagram:
+        # BUS / GRID ---- [ BREAKER ] ---- INCOMING GENERATOR
+        left = x - width / 2
+        right = x + width / 2
+        gap = 28
+        left_contact = x - gap
+        right_contact = x + gap
         line_y = y + 8
 
-        self.canvas.create_line(left, line_y, left_contact, line_y, fill="#6b7280", width=5)
-        self.canvas.create_line(right_contact, line_y, right, line_y, fill="#6b7280", width=5)
+        # Bus side and generator side conductors.
+        self.canvas.create_line(
+            left, line_y, left_contact, line_y,
+            fill=config.GREEN, width=5)
+        self.canvas.create_line(
+            right_contact, line_y, right, line_y,
+            fill=config.BLUE, width=5)
+
+        # Simple bus/grid marker.
+        for offset in (-7, 0, 7):
+            self.canvas.create_line(
+                left + 18, line_y - 12 + offset,
+                left + 18, line_y + 12 + offset,
+                fill=config.GREEN, width=2)
+
+        # Generator marker.
+        self.canvas.create_oval(
+            right - 25, line_y - 13, right - 1, line_y + 13,
+            outline=config.BLUE, width=2)
+        self.canvas.create_text(
+            right - 13, line_y, text="G",
+            fill=config.BLUE, font=("Arial", 9, "bold"))
+
         self.canvas.create_oval(
             left_contact-6, line_y-6, left_contact+6, line_y+6,
             fill="#d1d5db", outline="")
@@ -134,15 +159,26 @@ class DrawingMixin:
                 (time.perf_counter() - self.breaker_anim_start)
                 / self.breaker_anim_duration)
             blade_end_y = line_y - 30 * (1.0 - progress)
-            blade_color, state = config.AMBER, "BREAKER CLOSING..."
+            blade_color = config.AMBER
+            state = "BREAKER CLOSING..."
         else:
             blade_color = config.GREEN if self.connected else config.RED
             blade_end_y = line_y if self.connected else line_y - 30
             state = "BREAKER CLOSED" if self.connected else "BREAKER OPEN"
 
+        # Keep the original animated breaker blade.
         self.canvas.create_line(
             left_contact, line_y, right_contact, blade_end_y,
             fill=blade_color, width=7)
+
+        self.canvas.create_text(
+            left + 35, y - 18,
+            text="BUS / GRID", fill=config.GREEN,
+            font=("Arial", 9, "bold"), anchor="w")
+        self.canvas.create_text(
+            right - 35, y - 18,
+            text="INCOMING GENERATOR", fill=config.BLUE,
+            font=("Arial", 9, "bold"), anchor="e")
         self.canvas.create_text(
             x, y + 43, text=state, fill=blade_color,
             font=("Arial", 10, "bold"))
