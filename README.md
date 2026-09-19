@@ -1,6 +1,6 @@
 # Synchroscope Simulator
 
-Educational Tkinter simulator for synchronizing an incoming generator with a 50 Hz BUS.
+Educational simulator for synchronizing a generator with a 50 Hz BUS.
 
 ## Run
 
