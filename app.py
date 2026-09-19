@@ -31,9 +31,10 @@ class Synchroscope(tk.Tk):
         self.bus = Generator(50.00, 0.0, 110.0)
         self.generator = Generator(49.80, math.radians(-70), 108.5)
 
+        # Frequency setpoint is controlled directly by the slider.
+        # SLOW/FAST determines how quickly actual frequency follows it.
         self.frequency_target = 49.80
         self.frequency_rate = 0.20
-        self.governor = False
         self.avr = False
 
         self.build_ui()
@@ -137,19 +138,12 @@ class Synchroscope(tk.Tk):
         self.voltage_scale.set(self.generator.voltage)
         self.voltage_scale.pack(fill="x", padx=18)
 
-        self.gov_var = tk.BooleanVar(value=False)
-        tk.Checkbutton(
-            parent, text="AUTO GOVERNOR", variable=self.gov_var,
-            command=self.toggle_governor, bg=PANEL, fg=MUTED,
-            selectcolor=BG, activebackground=PANEL, activeforeground=TEXT,
-            highlightthickness=0).pack(anchor="w", padx=14, pady=(8, 0))
-
         self.avr_var = tk.BooleanVar(value=False)
         tk.Checkbutton(
             parent, text="AUTO AVR", variable=self.avr_var,
             command=self.toggle_avr, bg=PANEL, fg=MUTED,
             selectcolor=BG, activebackground=PANEL, activeforeground=TEXT,
-            highlightthickness=0).pack(anchor="w", padx=14)
+            highlightthickness=0).pack(anchor="w", padx=14, pady=(8, 0))
 
         self.close_button = tk.Button(
             parent, text="CLOSE BREAKER", command=self.close_breaker,
@@ -173,8 +167,6 @@ class Synchroscope(tk.Tk):
             self.frequency_target = float(value)
 
     def set_rate(self, mode):
-        # The mode is now clearly latched and also starts moving the
-        # generator toward the bus if the setpoint is still at its current value.
         if mode == "slow":
             self.frequency_rate = 0.20
             name = "SLOW"
@@ -196,12 +188,6 @@ class Synchroscope(tk.Tk):
     def set_voltage(self, value):
         if not self.connected:
             self.generator.voltage = float(value)
-
-    def toggle_governor(self):
-        self.governor = self.gov_var.get()
-        if self.governor:
-            self.frequency_target = self.bus.frequency
-            self.freq_scale.set(self.frequency_target)
 
     def toggle_avr(self):
         self.avr = self.avr_var.get()
@@ -241,9 +227,7 @@ class Synchroscope(tk.Tk):
         self.freq_scale.set(self.frequency_target)
         self.voltage_scale.set(self.generator.voltage)
 
-        self.gov_var.set(False)
         self.avr_var.set(False)
-        self.governor = False
         self.avr = False
 
         self.close_button.config(text="CLOSE BREAKER", state="normal")
@@ -262,10 +246,6 @@ class Synchroscope(tk.Tk):
             self.generator.frequency = self.bus.frequency
             self.generator.voltage = self.bus.voltage
         else:
-            if self.governor:
-                self.frequency_target = self.bus.frequency
-                self.freq_scale.set(self.frequency_target)
-
             error = self.frequency_target - self.generator.frequency
             max_change = self.frequency_rate * dt
             if abs(error) <= max_change:
@@ -286,7 +266,7 @@ class Synchroscope(tk.Tk):
         self.canvas.create_oval(
             cx-radius, cy-radius, cx+radius, cy+radius,
             outline="#4b5563")
-        self.canvas.create_line(cx-radius, cy, cx+radius, cy, fill="#1f2937")
+        self.canvas.create_line(cx-radius, cy, cx+radius, cy+radius*0, fill="#1f2937")
         self.canvas.create_line(cx, cy-radius, cx, cy+radius, fill="#1f2937")
 
         a = phase - math.pi / 2
