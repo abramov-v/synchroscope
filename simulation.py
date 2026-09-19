@@ -5,7 +5,8 @@ import math
 from config import (
     BUS_FREQUENCY, BUS_VOLTAGE,
     INITIAL_GEN_FREQUENCY, INITIAL_GEN_PHASE_DEG, INITIAL_GEN_VOLTAGE,
-    SYNC_PHASE_LIMIT_DEG, SYNC_FREQUENCY_LIMIT_HZ, SYNC_VOLTAGE_LIMIT_KV,
+    SYNC_PHASE_LIMIT_DEG, SYNC_FREQUENCY_LIMIT_HZ,
+    SYNC_VOLTAGE_MIN_PERCENT, SYNC_VOLTAGE_MAX_PERCENT,
     INITIAL_EXCITATION, EXCITATION_KV_PER_PERCENT, AVR_RESPONSE, AVR_GAIN,
 )
 from generator import Generator
@@ -37,13 +38,20 @@ class Simulation:
     def voltage_difference(self):
         return self.generator.voltage - self.bus.voltage
 
+    def voltage_difference_percent(self):
+        return (self.voltage_difference() / self.bus.voltage) * 100.0
+
     def sync_state(self):
         phase = abs(self.phase_error_degrees())
         df = abs(self.frequency_difference())
-        dv = abs(self.voltage_difference())
+        dv_percent = self.voltage_difference_percent()
         phase_ok = phase <= SYNC_PHASE_LIMIT_DEG
         freq_ok = df < SYNC_FREQUENCY_LIMIT_HZ
-        volt_ok = dv <= SYNC_VOLTAGE_LIMIT_KV
+        volt_ok = (
+            SYNC_VOLTAGE_MIN_PERCENT
+            <= dv_percent
+            <= SYNC_VOLTAGE_MAX_PERCENT
+        )
         return phase_ok, freq_ok, volt_ok, phase_ok and freq_ok and volt_ok
 
     def reset_generator(self):
