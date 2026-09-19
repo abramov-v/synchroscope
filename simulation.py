@@ -39,7 +39,11 @@ class Simulation:
         return self.generator.voltage - self.bus.voltage
 
     def voltage_difference_percent(self):
-        return (self.voltage_difference() / self.bus.voltage) * 100.0
+        dv_percent = (self.voltage_difference() / self.bus.voltage) * 100.0
+        # Avoid blocking a close because of tiny floating-point error at 0%.
+        if abs(dv_percent) < 0.01:
+            return 0.0
+        return dv_percent
 
     def sync_state(self):
         phase = abs(self.phase_error_degrees())
