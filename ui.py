@@ -61,20 +61,26 @@ class UIMixin:
         freq_buttons = tk.Frame(parent, bg=config.PANEL)
         freq_buttons.pack(fill="x", padx=18)
         self.down_button = tk.Button(
-            freq_buttons, text="▼  SPEED DOWN",
-            command=lambda: self.change_frequency(-1),
+            freq_buttons, text="▼  SLOW",
+            
             bg="#374151", fg=config.TEXT, activebackground=config.RED,
             activeforeground=config.TEXT, relief="flat",
             font=("Arial", 10, "bold"), padx=4, pady=10)
         self.down_button.pack(side="left", fill="x", expand=True, padx=(0, 4))
         self.up_button = tk.Button(
-            freq_buttons, text="▲  SPEED UP",
-            command=lambda: self.change_frequency(1),
+            freq_buttons, text="▲  FAST",
+            
             bg="#374151", fg=config.TEXT, activebackground=config.BLUE,
             activeforeground=config.TEXT, relief="flat",
             font=("Arial", 10, "bold"), padx=4, pady=10)
         self.up_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
-        tk.Label(parent, text="One click = one frequency step", fg=config.MUTED,
+
+        # Hold the mouse button to continuously adjust frequency.
+        self.down_button.bind("<ButtonPress-1>", lambda event: self.start_frequency_hold(-1))
+        self.down_button.bind("<ButtonRelease-1>", self.stop_frequency_hold)
+        self.up_button.bind("<ButtonPress-1>", lambda event: self.start_frequency_hold(1))
+        self.up_button.bind("<ButtonRelease-1>", self.stop_frequency_hold)
+        tk.Label(parent, text="Click = one step • Hold = continuous change", fg=config.MUTED,
                  bg=config.PANEL, font=("Arial", 8)).pack(anchor="w", padx=18, pady=(3, 0))
 
         tk.Label(parent, text="Optional frequency slider", fg=config.MUTED, bg=config.PANEL).pack(
@@ -131,6 +137,36 @@ class UIMixin:
                                      fg=config.MUTED, bg=config.PANEL,
                                      font=("Courier New", 10))
         self.measurements.pack(fill="x", padx=18)
+
+    def start_frequency_hold(self, direction):
+        if self.connected:
+            return
+
+        self.stop_frequency_hold()
+        self.frequency_hold_direction = direction
+        self.change_frequency(direction)
+
+        # First repeat after a short delay, then continue while held.
+        self.frequency_hold_job = self.after(
+            180, self.repeat_frequency_hold)
+
+    def repeat_frequency_hold(self):
+        if self.frequency_hold_direction == 0 or self.connected:
+            self.frequency_hold_job = None
+            return
+
+        self.change_frequency(self.frequency_hold_direction)
+        self.frequency_hold_job = self.after(
+            60, self.repeat_frequency_hold)
+
+    def stop_frequency_hold(self, event=None):
+        self.frequency_hold_direction = 0
+        if self.frequency_hold_job is not None:
+            try:
+                self.after_cancel(self.frequency_hold_job)
+            except tk.TclError:
+                pass
+            self.frequency_hold_job = None
 
     def change_frequency(self, direction):
         if self.connected:
