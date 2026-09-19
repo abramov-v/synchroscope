@@ -211,8 +211,8 @@ class UIMixin:
                        self.finish_close_breaker)
         else:
             messagebox.showwarning(
-                "Cannot close breaker",
-                "Synchronization conditions are not met.\n\n"
+                "BREAKER BLOCKED — SYNC CHECK",
+                "Breaker close is blocked until all synchronization conditions are met.\n\n"
                 f"Phase error: {phase:.1f}° (need ≤ 10°)\n"
                 f"Frequency difference: {df:.2f} Hz (need < 0.067 Hz)\n"
                 f"Voltage difference: {dv:.1f} kV (need ≤ 1.0 kV)"
@@ -224,7 +224,9 @@ class UIMixin:
         self.breaker_animating = False
         self.connected = True
         self.simulation.connect_generator()
-        self.close_button.config(text="BREAKER CLOSED", state="disabled")
+        self.close_button.config(
+            text="BREAKER CLOSED", state="disabled", bg=config.GREEN,
+            fg=config.BG)
         self.status.config(text="CONNECTED — SYNCHRONIZED", fg=config.GREEN)
 
     def reset(self):
@@ -237,5 +239,6 @@ class UIMixin:
         self.voltage_scale.set(self.simulation.generator.voltage)
         self.avr_var.set(False)
         self.avr = False
-        self.close_button.config(text="CLOSE BREAKER  [SPACE]", state="normal")
+        self.close_button.config(text="CLOSE BREAKER  [SPACE]", state="normal",
+                                bg="#374151", fg=config.TEXT)
         self.status.config(text="SYNCHRONIZING", fg=config.AMBER)
