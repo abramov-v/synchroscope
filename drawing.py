@@ -25,6 +25,74 @@ class DrawingMixin:
             cx, cy-radius-16, text=title,
             fill=config.TEXT, font=("Arial", 10, "bold"))
 
+    def draw_slip_indicator(self, cx, cy, radius):
+        """Show which way the generator phase is moving around the clock."""
+        df = self.simulation.frequency_difference()
+
+        if abs(df) < config.SLIP_HOLD_LIMIT_HZ:
+            state = "HOLD"
+            color = config.GREEN
+            direction = 0
+        elif df > 0:
+            state = "FAST  ↻"
+            color = config.BLUE
+            direction = 1
+        else:
+            state = "SLOW  ↺"
+            color = config.AMBER
+            direction = -1
+
+        ring_r = radius + 16
+
+        if direction:
+            start = math.radians(-145)
+            end = math.radians(-35)
+            if direction < 0:
+                start, end = end, start
+
+            steps = 24
+            points = []
+            for i in range(steps + 1):
+                angle = start + (end - start) * i / steps
+                points.extend((
+                    cx + ring_r * math.cos(angle),
+                    cy + ring_r * math.sin(angle),
+                ))
+            self.canvas.create_line(
+                *points, fill=color, width=3, smooth=True)
+
+            angle = end
+            tip_x = cx + ring_r * math.cos(angle)
+            tip_y = cy + ring_r * math.sin(angle)
+            tangent = 1 if direction > 0 else -1
+            tx, ty = -math.sin(angle) * tangent, math.cos(angle) * tangent
+            nx, ny = math.cos(angle), math.sin(angle)
+            size = 10
+            p1 = (tip_x, tip_y)
+            p2 = (tip_x - tx * size - nx * 4, tip_y - ty * size - ny * 4)
+            p3 = (tip_x - tx * size + nx * 4, tip_y - ty * size + ny * 4)
+            self.canvas.create_polygon(
+                *p1, *p2, *p3, fill=color, outline="")
+
+        self.canvas.create_text(
+            cx, cy + radius + 40,
+            text=state,
+            fill=color,
+            font=("Arial", 9, "bold"))
+
+        if direction > 0:
+            hint = "GENERATOR FASTER — REDUCE FREQUENCY"
+        elif direction < 0:
+            hint = "GENERATOR SLOWER — INCREASE FREQUENCY"
+        else:
+            hint = "FREQUENCY MATCH — HOLD"
+
+        self.canvas.create_text(
+            cx, cy + radius + 56,
+            text=hint,
+            fill=config.MUTED,
+            font=("Arial", 7, "bold"))
+
     def draw_synchroscope(self, cx, cy, radius):
         self.canvas.create_oval(
             cx-radius, cy-radius, cx+radius, cy+radius,
@@ -34,13 +102,21 @@ class DrawingMixin:
         phase_ok, freq_ok, volt_ok, ready = self.simulation.sync_state()
 
         zone = math.radians(config.SYNC_PHASE_LIMIT_DEG)
+        gate_color = config.GREEN if ready else (
+            config.AMBER if phase_ok else "#4b5563")
         for side in (-1, 1):
             angle = -math.pi / 2 + side * zone
             self.canvas.create_line(
                 cx, cy,
                 cx + (radius-5)*math.cos(angle),
                 cy + (radius-5)*math.sin(angle),
-                fill=config.GREEN if ready else "#4b5563", width=4)
+                fill=gate_color, width=5)
+        if ready:
+            pulse = 0.55 + 0.45 * math.sin(time.perf_counter() * 6.0)
+            glow = "#86efac" if pulse > 0.8 else config.GREEN
+            self.canvas.create_oval(
+                cx-radius+5, cy-radius+5, cx+radius-5, cy+radius-5,
+                outline=glow, width=2)
 
         for deg in range(0, 360, 30):
             angle = math.radians(deg - 90)
@@ -73,6 +149,13 @@ class DrawingMixin:
             cx, cy+radius+20, text="SYNCHROSCOPE",
             fill=config.GREEN if ready else config.MUTED,
             font=("Arial", 9, "bold"))
+        self.draw_slip_indicator(cx, cy, radius)
+        if ready:
+            self.canvas.create_text(
+                cx, cy-radius-31,
+                text="● CLOSE NOW",
+                fill=config.GREEN,
+                font=("Arial", 9, "bold"))
 
     def draw_waveform(self, x, y, width, height):
         self.canvas.create_rectangle(
