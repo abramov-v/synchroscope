@@ -8,7 +8,7 @@ Educational Tkinter simulator for synchronizing an incoming generator with a 50 
 python app.py
 ```
 
-Requirements: Python 3.x + Tkinter. No third-party packages.
+Requirements: Python 3.x + Tkinter
 
 ## Controls
 
