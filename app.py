@@ -31,13 +31,23 @@ class Synchroscope(tk.Tk):
         self.bus = Generator(50.00, 0.0, 110.0)
         self.generator = Generator(49.80, math.radians(-70), 108.5)
 
-        # Frequency setpoint is controlled directly by the slider.
-        # SLOW/FAST determines how quickly actual frequency follows it.
-        self.frequency_target = 49.80
+        # SLOW/FAST is the frequency ramp rate.
+        # SPEED UP / SPEED DOWN are held by the operator to change frequency.
         self.frequency_rate = 0.20
+        self.frequency_min = 49.0
+        self.frequency_max = 51.0
+        self.frequency_direction = 0
         self.avr = False
 
         self.build_ui()
+
+        # Spacebar = breaker close. Up/Down arrows also work as frequency controls.
+        self.bind("<space>", self.on_space)
+        self.bind("<KeyPress-Up>", lambda event: self.start_frequency_change(1))
+        self.bind("<KeyRelease-Up>", lambda event: self.stop_frequency_change())
+        self.bind("<KeyPress-Down>", lambda event: self.start_frequency_change(-1))
+        self.bind("<KeyRelease-Down>", lambda event: self.stop_frequency_change())
+
         self.after(30, self.animate)
 
     @staticmethod
@@ -84,7 +94,7 @@ class Synchroscope(tk.Tk):
         self.status.pack(side="left")
         tk.Label(
             bottom,
-            text="Set frequency → choose SLOW/FAST → wait for 12 o'clock → CLOSE",
+            text="Adjust frequency → wait for 12 o'clock → press SPACE or CLOSE BREAKER",
             fg=MUTED, bg=BG, font=("Arial", 10)).pack(side="right")
 
     def build_controls(self, parent):
@@ -95,18 +105,33 @@ class Synchroscope(tk.Tk):
                                        font=("Arial", 18, "bold"))
         self.gen_freq_label.pack(anchor="w", padx=18)
 
-        tk.Label(parent, text="Frequency setpoint (Hz)", fg=MUTED, bg=PANEL).pack(
-            anchor="w", padx=18)
-        self.freq_scale = tk.Scale(
-            parent, from_=49.0, to=51.0, resolution=0.01,
-            orient="horizontal", bg=PANEL, fg=TEXT, highlightthickness=0,
-            troughcolor=GRID, activebackground=BLUE,
-            command=self.set_frequency)
-        self.freq_scale.set(self.frequency_target)
-        self.freq_scale.pack(fill="x", padx=18)
+        tk.Label(parent, text="Frequency control", fg=MUTED, bg=PANEL).pack(
+            anchor="w", padx=18, pady=(2, 4))
+
+        freq_buttons = tk.Frame(parent, bg=PANEL)
+        freq_buttons.pack(fill="x", padx=18)
+
+        self.down_button = tk.Button(
+            freq_buttons, text="▼  SPEED DOWN",
+            command=lambda: self.start_frequency_change(-1),
+            bg="#374151", fg=TEXT, activebackground=RED,
+            activeforeground=TEXT, relief="flat",
+            font=("Arial", 10, "bold"), padx=4, pady=10)
+        self.down_button.pack(side="left", fill="x", expand=True, padx=(0, 4))
+
+        self.up_button = tk.Button(
+            freq_buttons, text="▲  SPEED UP",
+            command=lambda: self.start_frequency_change(1),
+            bg="#374151", fg=TEXT, activebackground=BLUE,
+            activeforeground=TEXT, relief="flat",
+            font=("Arial", 10, "bold"), padx=4, pady=10)
+        self.up_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
+
+        tk.Label(parent, text="Hold button to change frequency", fg=MUTED,
+                 bg=PANEL, font=("Arial", 8)).pack(anchor="w", padx=18, pady=(3, 0))
 
         tk.Label(parent, text="Frequency change rate", fg=MUTED, bg=PANEL).pack(
-            anchor="w", padx=18, pady=(8, 3))
+            anchor="w", padx=18, pady=(10, 3))
 
         rate_frame = tk.Frame(parent, bg=PANEL)
         rate_frame.pack(fill="x", padx=18)
@@ -124,7 +149,7 @@ class Synchroscope(tk.Tk):
         self.fast_button.pack(side="left", fill="x", expand=True, padx=(4, 0))
 
         self.rate_label = tk.Label(
-            parent, text="ACTIVE: SLOW  •  0.20 Hz/s", fg=BLUE, bg=PANEL,
+            parent, text="ACTIVE: SLOW • 0.20 Hz/s", fg=BLUE, bg=PANEL,
             font=("Arial", 9, "bold"))
         self.rate_label.pack(anchor="w", padx=18, pady=(3, 0))
 
@@ -146,7 +171,7 @@ class Synchroscope(tk.Tk):
             highlightthickness=0).pack(anchor="w", padx=14, pady=(8, 0))
 
         self.close_button = tk.Button(
-            parent, text="CLOSE BREAKER", command=self.close_breaker,
+            parent, text="CLOSE BREAKER  [SPACE]", command=self.close_breaker,
             bg="#374151", fg=TEXT, relief="flat",
             font=("Arial", 12, "bold"), padx=10, pady=12)
         self.close_button.pack(fill="x", padx=18, pady=(17, 8))
@@ -162,9 +187,17 @@ class Synchroscope(tk.Tk):
             font=("Courier New", 10))
         self.measurements.pack(fill="x", padx=18)
 
-    def set_frequency(self, value):
-        if not self.connected:
-            self.frequency_target = float(value)
+    def start_frequency_change(self, direction):
+        if self.connected:
+            return
+        self.frequency_direction = direction
+        self.up_button.config(bg=BLUE if direction > 0 else "#374151")
+        self.down_button.config(bg=RED if direction < 0 else "#374151")
+
+    def stop_frequency_change(self):
+        self.frequency_direction = 0
+        self.up_button.config(bg="#374151")
+        self.down_button.config(bg="#374151")
 
     def set_rate(self, mode):
         if mode == "slow":
@@ -180,9 +213,8 @@ class Synchroscope(tk.Tk):
         self.fast_button.config(
             bg=BLUE if mode == "fast" else "#374151",
             fg=TEXT if mode == "fast" else MUTED)
-
         self.rate_label.config(
-            text=f"ACTIVE: {name}  •  {self.frequency_rate:.2f} Hz/s",
+            text=f"ACTIVE: {name} • {self.frequency_rate:.2f} Hz/s",
             fg=BLUE)
 
     def set_voltage(self, value):
@@ -192,6 +224,11 @@ class Synchroscope(tk.Tk):
     def toggle_avr(self):
         self.avr = self.avr_var.get()
 
+    def on_space(self, event=None):
+        if not self.connected:
+            self.close_breaker()
+        return "break"
+
     def close_breaker(self):
         phase = abs(math.degrees(self.phase_error()))
         df = abs(self.frequency_difference())
@@ -200,10 +237,8 @@ class Synchroscope(tk.Tk):
         if phase <= 10 and df <= 0.10 and dv <= 1.0:
             self.connected = True
             self.generator.frequency = self.bus.frequency
-            self.frequency_target = self.bus.frequency
             self.generator.voltage = self.bus.voltage
             self.close_button.config(text="BREAKER CLOSED", state="disabled")
-            self.freq_scale.config(state="disabled")
             self.voltage_scale.config(state="disabled")
             self.status.config(text="CONNECTED — SYNCHRONIZED", fg=GREEN)
         else:
@@ -220,18 +255,17 @@ class Synchroscope(tk.Tk):
         self.generator.frequency = 49.80
         self.generator.phase = math.radians(-70)
         self.generator.voltage = 108.5
-        self.frequency_target = 49.80
+        self.frequency_direction = 0
 
-        self.freq_scale.config(state="normal")
         self.voltage_scale.config(state="normal")
-        self.freq_scale.set(self.frequency_target)
         self.voltage_scale.set(self.generator.voltage)
 
         self.avr_var.set(False)
         self.avr = False
 
-        self.close_button.config(text="CLOSE BREAKER", state="normal")
+        self.close_button.config(text="CLOSE BREAKER  [SPACE]", state="normal")
         self.status.config(text="SYNCHRONIZING", fg=AMBER)
+        self.stop_frequency_change()
         self.set_rate("slow")
 
     def animate(self):
@@ -246,12 +280,11 @@ class Synchroscope(tk.Tk):
             self.generator.frequency = self.bus.frequency
             self.generator.voltage = self.bus.voltage
         else:
-            error = self.frequency_target - self.generator.frequency
-            max_change = self.frequency_rate * dt
-            if abs(error) <= max_change:
-                self.generator.frequency = self.frequency_target
-            else:
-                self.generator.frequency += math.copysign(max_change, error)
+            if self.frequency_direction:
+                self.generator.frequency += self.frequency_direction * self.frequency_rate * dt
+                self.generator.frequency = max(
+                    self.frequency_min,
+                    min(self.frequency_max, self.generator.frequency))
 
             if self.avr:
                 error_v = self.bus.voltage - self.generator.voltage
@@ -266,8 +299,10 @@ class Synchroscope(tk.Tk):
         self.canvas.create_oval(
             cx-radius, cy-radius, cx+radius, cy+radius,
             outline="#4b5563")
-        self.canvas.create_line(cx-radius, cy, cx+radius, cy+radius*0, fill="#1f2937")
-        self.canvas.create_line(cx, cy-radius, cx, cy+radius, fill="#1f2937")
+        self.canvas.create_line(cx-radius, cy, cx+radius, cy,
+                                fill="#1f2937")
+        self.canvas.create_line(cx, cy-radius, cx, cy+radius,
+                                fill="#1f2937")
 
         a = phase - math.pi / 2
         x = cx + (radius - 10) * math.cos(a)
@@ -407,7 +442,6 @@ class Synchroscope(tk.Tk):
             text=(
                 f"BUS       {self.bus.frequency:>6.2f} Hz\n"
                 f"GEN       {self.generator.frequency:>6.2f} Hz\n"
-                f"SETPOINT  {self.frequency_target:>6.2f} Hz\n"
                 f"ΔF        {df:>+6.2f} Hz\n"
                 f"BUS V     {self.bus.voltage:>6.1f} kV\n"
                 f"GEN V     {self.generator.voltage:>6.1f} kV\n"
