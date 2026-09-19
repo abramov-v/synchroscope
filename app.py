@@ -345,7 +345,7 @@ class Synchroscope(tk.Tk):
         self.draw()
         self.after(30, self.animate)
 
-    def draw_vector(self, cx, cy, radius, title, phase, color):
+    def draw_vector(self, cx, cy, radius, title, phase, color, fixed=False):
         self.canvas.create_oval(
             cx-radius, cy-radius, cx+radius, cy+radius,
             outline="#4b5563")
@@ -354,9 +354,12 @@ class Synchroscope(tk.Tk):
         self.canvas.create_line(cx, cy-radius, cx, cy+radius,
                                 fill="#1f2937")
 
-        a = phase - math.pi / 2
+        # BUS is the fixed reference. GEN is drawn using relative phase.
+        a = -math.pi / 2 if fixed else phase - math.pi / 2
         x = cx + (radius - 10) * math.cos(a)
         y = cy + (radius - 10) * math.sin(a)
+
+        self.canvas.create_line(cx, cy, x, y, fill="#1f2937", width=9)
         self.canvas.create_line(cx, cy, x, y, fill=color, width=4)
         self.canvas.create_oval(cx-4, cy-4, cx+4, cy+4, fill=TEXT, outline="")
         self.canvas.create_text(cx, cy-radius-16, text=title,
@@ -424,33 +427,40 @@ class Synchroscope(tk.Tk):
         self.canvas.create_line(x, mid, x+width, mid, fill="#1f2937")
 
         df = self.frequency_difference()
+        phase = self.phase_error()
+
         self.canvas.create_text(
             x+8, y+8, anchor="nw",
-            text="VOLTAGE WAVEFORM • SLIP VISUALIZATION",
+            text="VOLTAGE WAVEFORM • RELATIVE PHASE",
             fill=MUTED, font=("Arial", 8, "bold"))
         self.canvas.create_text(
             x+width-8, y+8, anchor="ne",
-            text=f"SLIP {df:+.3f} Hz",
+            text=f"ΔF {df:+.3f} Hz",
             fill=GREEN if abs(df) < 0.067 else BLUE,
             font=("Arial", 8, "bold"))
 
-        samples = 220
-        # Exaggerate only the visual separation so the slip is easy to see.
-        visual_slip = max(-0.35, min(0.35, df * 1.5))
-        for idx, (phase, color, label, extra) in enumerate([
-            (self.bus.phase, "#d1d5db", "BUS", 0.0),
-            (self.generator.phase, BLUE, "GEN", visual_slip)]):
+        # Display a readable 2.2 cycles. The real 50 Hz carrier is not animated
+        # at 50 cycles/sec; only the physically meaningful relative phase/slip
+        # is animated.
+        samples = 240
+        for color, label, relative_phase in [
+            ("#d1d5db", "BUS", 0.0),
+            (BLUE, "GEN", phase),
+        ]:
             points = []
             for i in range(samples):
-                t = i / (samples-1)
-                local_phase = phase + 2*math.pi*extra*t
+                t = i / (samples - 1)
+                local_phase = 2 * math.pi * 2.2 * t + relative_phase
                 xx = x + t * width
-                yy = mid - math.sin(2*math.pi*2.2*t + local_phase) * (height*0.30)
+                yy = mid - math.sin(local_phase) * (height * 0.30)
                 points.extend((xx, yy))
-            self.canvas.create_line(*points, fill=color, width=2, smooth=True)
+
+            self.canvas.create_line(
+                *points, fill=color, width=2, smooth=True)
             self.canvas.create_text(
-                x+width-8, y+22+idx*15, anchor="ne",
-                text=label, fill=color, font=("Arial", 8, "bold"))
+                x+width-8, y+22 + (0 if label == "BUS" else 15),
+                anchor="ne", text=label, fill=color,
+                font=("Arial", 8, "bold"))
 
     def draw_breaker(self, x, y, width):
         left = x - width/2
@@ -498,9 +508,9 @@ class Synchroscope(tk.Tk):
         h = max(self.canvas.winfo_height(), 450)
 
         r = min(w, h) * 0.16
-        self.draw_vector(w*.22, h*.30, r, "BUS / GRID", self.bus.phase, "#d1d5db")
+        self.draw_vector(w*.22, h*.30, r, "BUS / GRID", 0.0, "#d1d5db", fixed=True)
         self.draw_vector(w*.78, h*.30, r, "INCOMING GENERATOR",
-                         self.generator.phase, BLUE)
+                         self.phase_error(), BLUE, fixed=False)
         self.draw_synchroscope(w*.50, h*.30, r*0.82)
         self.draw_waveform(w*.08, h*.52, w*.84, h*.25)
         self.draw_breaker(w*.50, h*.85, w*.70)
